@@ -1,0 +1,12 @@
+.DS_Store
+.build/
+DerivedData/
+*.xcuserstate
+xcuserdata/
+
+# The Xcode project is generated from project.yml by xcodegen — committing it
+# produces noisy merge conflicts on every regenerate. project.yml is the
+# source of truth; run Scripts/regenerate-xcodeproj.sh after a fresh clone or
+# after editing project.yml.
+Nook.xcodeproj/
+.swiftpm/

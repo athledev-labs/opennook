@@ -1,0 +1,263 @@
+// SPDX-License-Identifier: Apache-2.0
+// Copyright (c) 2026 Glendon Chin
+//
+// Licensed under the Apache License, Version 2.0 (the "License");
+// you may not use this file except in compliance with the License.
+// A copy is included at /LICENSE in the repository root.
+
+import AppKit
+import Combine
+import NookSurface
+import SwiftUI
+
+/// App-wide coordinator. Owns the long-running state, constructs the notch chrome,
+/// and exposes the lifecycle vocabulary (show/hide/toggle, reset-settings) that views
+/// and the menu-bar fallback call into.
+@MainActor
+public final class AppCoordinator: ObservableObject {
+    public let appState: AppState
+    public let services: AppServices
+
+    enum NookAppearance {
+        static let expandedTopCornerRadius: CGFloat = 19
+        static let expandedBottomCornerRadius: CGFloat = 24
+    }
+
+    let hotkeyController: HotkeyController
+    var cancellables = Set<AnyCancellable>()
+    var accessibilityObserver: NSObjectProtocol?
+
+    lazy var nook: Nook<AnyView, AnyView, AnyView> = {
+        Nook<AnyView, AnyView, AnyView>(
+            hoverBehavior: [],
+            style: NookStyle(
+                topCornerRadius: NookAppearance.expandedTopCornerRadius,
+                bottomCornerRadius: NookAppearance.expandedBottomCornerRadius
+            ),
+            expanded: {
+                AnyView(NookExpandedView(
+                    appState: self.appState,
+                    services: self.services,
+                    toggleKeepOpen: { [weak self] in self?.toggleKeepNookOpen() },
+                    hide: { [weak self] in self?.hideNook() },
+                    resetAllSettings: { [weak self] in self?.resetAllSettingsToDefaults() }
+                ))
+            },
+            compactLeading: {
+                AnyView(NookCompactLeadingView(appState: self.appState))
+            },
+            compactTrailing: {
+                AnyView(NookCompactTrailingView(appState: self.appState))
+            }
+        )
+    }()
+
+    public init(
+        appState: AppState = AppState(),
+        services: AppServices = AppServices(),
+        hotkeyController: HotkeyController = HotkeyController()
+    ) {
+        self.appState = appState
+        self.services = services
+        self.hotkeyController = hotkeyController
+
+        bindBackdropSynchronization()
+    }
+
+    deinit {
+        if let accessibilityObserver {
+            NotificationCenter.default.removeObserver(accessibilityObserver)
+        }
+    }
+
+    public func start() {
+        NSApp.setActivationPolicy(.accessory)
+
+        syncNotchBackdrop()
+        configureNotchAnimations()
+
+        registerGlobalHotkey()
+        bindHotkeyRegistration()
+        bindNookDragSession()
+
+        // Cold-launch greeting: compact the chrome, then fire a one-shot shimmer along the
+        // perimeter so the user sees the app is awake. Awaiting `compact()` first puts the
+        // nook into a visible state so the event fires immediately instead of queuing.
+        Task { @MainActor in
+            await nook.compact()
+            nook.playFeedback(.shimmer, duration: 1.1)
+        }
+    }
+
+    // MARK: - Chrome / backdrop
+
+    /// Softer springs than NookSurface's bouncy defaults — smoother expand/compact with
+    /// less overshoot.
+    func configureNotchAnimations() {
+        nook.transitionConfiguration.openingAnimation = .spring(
+            response: 0.52, dampingFraction: 0.88, blendDuration: 0.12
+        )
+        nook.transitionConfiguration.closingAnimation = .spring(
+            response: 0.46, dampingFraction: 0.93, blendDuration: 0.10
+        )
+        nook.transitionConfiguration.conversionAnimation = .spring(
+            response: 0.54, dampingFraction: 0.86, blendDuration: 0.12
+        )
+    }
+
+    // MARK: - Global hotkey
+
+    /// Registers the current `appState.hotkey` as the global show/hide shortcut.
+    /// Skipped while the user is mid-recording so the old shortcut can't fire.
+    func registerGlobalHotkey() {
+        guard !appState.isRecordingHotkey else { return }
+
+        let hotkey = appState.hotkey
+        let status = hotkeyController.register(
+            keyCode: hotkey.keyCode,
+            modifiers: hotkey.carbonModifiers
+        ) { [weak self] in
+            Task { @MainActor in
+                self?.toggleNook()
+            }
+        }
+        if status != noErr {
+            appState.errorMessage = "Could not register global hotkey (status \(status))."
+        }
+    }
+
+    /// Keeps the live hotkey registration in sync with `appState`: re-register when the
+    /// user picks a new shortcut, and suspend registration entirely while recording.
+    private func bindHotkeyRegistration() {
+        appState.$hotkey
+            .dropFirst()
+            .receive(on: RunLoop.main)
+            .sink { [weak self] _ in self?.registerGlobalHotkey() }
+            .store(in: &cancellables)
+
+        appState.$isRecordingHotkey
+            .dropFirst()
+            .receive(on: RunLoop.main)
+            .sink { [weak self] isRecording in
+                guard let self else { return }
+                if isRecording {
+                    self.hotkeyController.unregister()
+                } else {
+                    self.registerGlobalHotkey()
+                }
+            }
+            .store(in: &cancellables)
+    }
+
+    private func bindBackdropSynchronization() {
+        appState.$appearancePreferences
+            .receive(on: RunLoop.main)
+            .sink { [weak self] _ in self?.syncNotchBackdrop() }
+            .store(in: &cancellables)
+
+        accessibilityObserver = NotificationCenter.default.addObserver(
+            forName: NSWorkspace.accessibilityDisplayOptionsDidChangeNotification,
+            object: nil,
+            queue: .main
+        ) { [weak self] _ in
+            Task { @MainActor in
+                self?.syncNotchBackdrop()
+            }
+        }
+    }
+
+    private func currentResolvedSystemScheme() -> ColorScheme {
+        NSApp.effectiveAppearance.bestMatch(from: [.darkAqua, .aqua]) == .darkAqua ? .dark : .light
+    }
+
+    func syncNotchBackdrop() {
+        let scheme = appState.appearancePreferences.effectiveColorScheme(systemScheme: currentResolvedSystemScheme())
+        let reduceTransparency = NSWorkspace.shared.accessibilityDisplayShouldReduceTransparency
+        // Pin the window appearance first: the backdrop's visual-effect material resolves
+        // against it, so a forced light/dark theme needs both to agree.
+        nook.chromeAppearance = appState.appearancePreferences.chromeAppearanceOverride
+        nook.backdropConfiguration = NookBackdropMapping.notchBackdrop(
+            preferences: appState.appearancePreferences,
+            effectiveColorScheme: scheme,
+            reduceTransparency: reduceTransparency
+        )
+    }
+
+    private func bindNookDragSession() {
+        nook.$isDragInFlight
+            .receive(on: RunLoop.main)
+            .sink { [weak self] inFlight in
+                self?.appState.isDragInFlight = inFlight
+            }
+            .store(in: &cancellables)
+
+        nook.onFileDrop = { _ in false }
+    }
+
+    // MARK: - Nook lifecycle
+
+    public func toggleNook() {
+        appState.resetTransientStatus()
+        if appState.isNookVisible {
+            hideNook()
+        } else {
+            showNook()
+        }
+    }
+
+    public func showNook() {
+        appState.resetTransientStatus()
+        appState.isNookVisible = true
+        Task {
+            nook.staysExpandedOnHoverExit = appState.keepNookOpen
+            await nook.expand()
+        }
+    }
+
+    public func showHome() {
+        appState.showHome()
+        showNook()
+    }
+
+    public func showSettings() {
+        appState.showSettings()
+        showNook()
+    }
+
+    public func hideNook() {
+        appState.isNookVisible = false
+        Task {
+            await nook.compact()
+        }
+    }
+
+    public func toggleKeepNookOpen() {
+        appState.keepNookOpen.toggle()
+        nook.staysExpandedOnHoverExit = appState.keepNookOpen
+    }
+
+    /// Pin the nook open while a transient interaction (sheet, modal) is presented.
+    /// macOS sheets surface in a new window above the notch, which moves the pointer outside
+    /// the notch's hover region and causes auto-compact. Calling this with `true` suspends
+    /// auto-compact; `false` restores the user's `keepNookOpen` preference.
+    public func setStaysExpandedOverride(_ active: Bool) {
+        if active {
+            nook.staysExpandedOnHoverExit = true
+        } else {
+            nook.staysExpandedOnHoverExit = appState.keepNookOpen
+        }
+    }
+
+    // MARK: - Reset
+
+    /// Restores appearance prefs, the global hotkey, keep-open, and expand behavior to
+    /// their defaults. The `$hotkey` binding re-registers the shortcut automatically.
+    public func resetAllSettingsToDefaults() {
+        appState.keepNookOpen = false
+        appState.appearancePreferences = .default
+        NookAppearanceStore.save(.default)
+        appState.replaceHotkey(.default)
+        nook.staysExpandedOnHoverExit = false
+        syncNotchBackdrop()
+    }
+}
