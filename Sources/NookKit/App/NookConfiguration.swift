@@ -65,6 +65,17 @@ public struct NookConfiguration {
     /// this; a host can also route drops through its own import flow.
     public var onFileDrop: (([URL]) -> Bool)?
 
+    /// Called once, on the main actor, at the end of `AppCoordinator.start()` — a
+    /// post-launch handle on the live coordinator.
+    ///
+    /// `NookComponents`' activity queue uses this to `bind` itself to the coordinator
+    /// (which conforms to ``NookSurfacePresenting``); a host can also use it to drive
+    /// the chrome or observe state after launch.
+    ///
+    /// Typed `@MainActor` — it always runs on the main actor — so the callback may call
+    /// main-actor-isolated API (e.g. `NookActivityQueue.bind`) directly.
+    public var onReady: (@MainActor (AppCoordinator) -> Void)?
+
     /// Creates a configuration matching the framework demo: the placeholder home view,
     /// the default compact glyphs, the live system theme, and no lifecycle callbacks.
     public init() {

@@ -30,6 +30,10 @@ public final class AppCoordinator: ObservableObject {
     var cancellables = Set<AnyCancellable>()
     var accessibilityObserver: NSObjectProtocol?
 
+    /// Surface state captured at `beginTransientPresentation()`, restored when the
+    /// transient presentation ends. Non-`nil` only while a transient takeover is active.
+    var transientRestoreState: NookState?
+
     lazy var nook: Nook<AnyView, AnyView, AnyView> = {
         let nook = Nook<AnyView, AnyView, AnyView>(
             hoverBehavior: [],
@@ -110,6 +114,10 @@ public final class AppCoordinator: ObservableObject {
             await nook.compact(on: resolveScreen())
             nook.playFeedback(.shimmer, duration: 1.1)
         }
+
+        // Hand the host a post-launch handle on the live coordinator (e.g. for
+        // NookComponents' activity queue to bind itself as a transient presenter).
+        configuration.onReady?(self)
     }
 
     // MARK: - Display targeting
@@ -329,5 +337,44 @@ public final class AppCoordinator: ObservableObject {
         appState.replaceDisplayPreference(.default)
         nook.staysExpandedOnHoverExit = false
         syncNotchBackdrop()
+    }
+}
+
+// MARK: - NookSurfacePresenting
+
+extension AppCoordinator: NookSurfacePresenting {
+    /// The user owns the surface while they're hovering it or while they opened it
+    /// themselves; a transient presenter pauses in either case.
+    public var isUserEngaged: Bool {
+        appState.isNookVisible || nook.isHovering
+    }
+
+    public var userEngagementChanges: AnyPublisher<Bool, Never> {
+        appState.$isNookVisible
+            .combineLatest(nook.$isHovering)
+            .map { $0 || $1 }
+            .removeDuplicates()
+            .eraseToAnyPublisher()
+    }
+
+    /// Snapshots the current state and expands the chrome. A second call while a
+    /// transient presentation is already active is a no-op (the snapshot is kept).
+    public func beginTransientPresentation() async {
+        guard transientRestoreState == nil else { return }
+        transientRestoreState = nook.state
+        await nook.expand()
+    }
+
+    /// Restores the snapshotted state — unless the user engaged the surface during the
+    /// presentation, in which case their state is left as-is.
+    public func endTransientPresentation() async {
+        guard let restore = transientRestoreState else { return }
+        transientRestoreState = nil
+        guard !isUserEngaged else { return }
+        switch restore {
+        case .compact: await nook.compact()
+        case .hidden: await nook.hide()
+        case .expanded: break
+        }
     }
 }

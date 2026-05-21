@@ -46,6 +46,27 @@ public enum NookApp {
         configuration.setHome(home)
         main(configuration)
     }
+
+    /// Boots a notch app, building the ``NookConfiguration`` on the main actor.
+    ///
+    /// Use this overload when setup constructs main-actor-isolated types — a
+    /// `NookComponents` `ShelfStore` or `NookActivityQueue`, a host view model — which
+    /// can't be created from the (non-isolated) top level of a `main.swift`:
+    ///
+    /// ```swift
+    /// NookApp.main {
+    ///     let queue = NookActivityQueue()
+    ///     var configuration = NookConfiguration()
+    ///     configuration.setHome { NookActivityHost(queue: queue) { MyHome() } }
+    ///     configuration.onReady = { queue.bind(to: $0) }
+    ///     return configuration
+    /// }
+    /// ```
+    public static func main(_ build: @MainActor () -> NookConfiguration) {
+        MainActor.assumeIsolated {
+            main(build())
+        }
+    }
 }
 
 @MainActor

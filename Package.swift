@@ -28,7 +28,8 @@ let package = Package(
         .executable(name: "HelloNook", targets: ["HelloNook"]),
         .executable(name: "ClockNook", targets: ["ClockNook"]),
         .executable(name: "ThemedNook", targets: ["ThemedNook"]),
-        .executable(name: "ShelfNook", targets: ["ShelfNook"])
+        .executable(name: "ShelfNook", targets: ["ShelfNook"]),
+        .executable(name: "ActivityNook", targets: ["ActivityNook"])
     ],
     targets: [
         .target(
@@ -83,6 +84,11 @@ let package = Package(
             name: "ShelfNook",
             dependencies: ["NookApp", "NookComponents"],
             path: "Examples/ShelfNook"
+        ),
+        .executableTarget(
+            name: "ActivityNook",
+            dependencies: ["NookApp", "NookComponents"],
+            path: "Examples/ActivityNook"
         ),
         .testTarget(
             name: "NookKitTests",

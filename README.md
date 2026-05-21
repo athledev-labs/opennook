@@ -72,6 +72,11 @@ you want one. It is not pulled in by `NookApp`.
   persistent `ShelfStore`, and you can drag them back out. Render it with
   `NookShelfView` and wire `ShelfStore.accept` into `NookConfiguration.onFileDrop`.
   See `Examples/ShelfNook`.
+- `Activities/` — a priority live-activity queue: `NookActivityQueue` collects
+  transient activities, orders them by priority, coalesces duplicates, and
+  presents each by briefly taking over the expanded surface. Bind it via
+  `NookConfiguration.onReady` and render with `NookActivityHost`. The queue
+  yields the surface whenever the user is engaging it. See `Examples/ActivityNook`.
 
 ### The demo app
 
@@ -121,10 +126,11 @@ Single-file examples under `Examples/` show how to build on OpenNook through
 public API only — no forking:
 
 ```sh
-swift run HelloNook    # register one view, go
-swift run ClockNook    # custom home view + a custom compact slot
-swift run ThemedNook   # a host-supplied theme + lifecycle hooks
-swift run ShelfNook    # a drop-files-on-the-notch shelf (NookComponents)
+swift run HelloNook     # register one view, go
+swift run ClockNook     # custom home view + a custom compact slot
+swift run ThemedNook    # a host-supplied theme + lifecycle hooks
+swift run ShelfNook     # a drop-files-on-the-notch shelf (NookComponents)
+swift run ActivityNook  # a priority live-activity queue (NookComponents)
 ```
 
 ## Start your own notch app
