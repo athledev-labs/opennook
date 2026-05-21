@@ -6,6 +6,7 @@
 // A copy is included at /LICENSE in the repository root.
 
 import Foundation
+import NookSurface
 import SwiftUI
 
 /// Persistent personalization for the Nook chrome. Values map to Apple-style materials
@@ -17,6 +18,10 @@ public struct NookAppearancePreferences: Equatable, Codable, Sendable {
     /// Solid (opaque, matches the notch) or translucent (frosted, shows the wallpaper).
     public var surfaceStyle: NookSurfaceStyle
 
+    /// Notch-fused or free-floating chrome — `.auto` follows the display. See
+    /// ``NookPresentation``. This is what lets OpenNook work on a Mac with no notch.
+    public var presentation: NookPresentation
+
     /// When on, completion-style events play a one-shot trackpad haptic via
     /// `NSHapticFeedbackManager`. Off by default — macOS haptics only fire when the user's
     /// hand is on a Force Touch trackpad with system haptics enabled, so this is a bonus
@@ -26,10 +31,12 @@ public struct NookAppearancePreferences: Equatable, Codable, Sendable {
     public init(
         chromePalette: NookChromePalette = .followSystem,
         surfaceStyle: NookSurfaceStyle = .solid,
+        presentation: NookPresentation = .auto,
         hapticFeedbackEnabled: Bool = false
     ) {
         self.chromePalette = chromePalette
         self.surfaceStyle = surfaceStyle
+        self.presentation = presentation
         self.hapticFeedbackEnabled = hapticFeedbackEnabled
     }
 
@@ -38,6 +45,7 @@ public struct NookAppearancePreferences: Equatable, Codable, Sendable {
     private enum CodingKeys: String, CodingKey {
         case chromePalette
         case surfaceStyle
+        case presentation
         case hapticFeedbackEnabled
     }
 
@@ -49,6 +57,7 @@ public struct NookAppearancePreferences: Equatable, Codable, Sendable {
         let container = try decoder.container(keyedBy: CodingKeys.self)
         self.chromePalette = try container.decodeIfPresent(NookChromePalette.self, forKey: .chromePalette) ?? .followSystem
         self.surfaceStyle = try container.decodeIfPresent(NookSurfaceStyle.self, forKey: .surfaceStyle) ?? .solid
+        self.presentation = try container.decodeIfPresent(NookPresentation.self, forKey: .presentation) ?? .auto
         self.hapticFeedbackEnabled = try container.decodeIfPresent(Bool.self, forKey: .hapticFeedbackEnabled) ?? false
     }
 
@@ -56,6 +65,7 @@ public struct NookAppearancePreferences: Equatable, Codable, Sendable {
         var container = encoder.container(keyedBy: CodingKeys.self)
         try container.encode(chromePalette, forKey: .chromePalette)
         try container.encode(surfaceStyle, forKey: .surfaceStyle)
+        try container.encode(presentation, forKey: .presentation)
         try container.encode(hapticFeedbackEnabled, forKey: .hapticFeedbackEnabled)
     }
 }

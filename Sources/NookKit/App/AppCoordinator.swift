@@ -75,6 +75,7 @@ public final class AppCoordinator: ObservableObject {
 
         syncNotchBackdrop()
         configureNotchAnimations()
+        configureDisplayTargeting()
 
         registerGlobalHotkey()
         bindHotkeyRegistration()
@@ -84,9 +85,48 @@ public final class AppCoordinator: ObservableObject {
         // perimeter so the user sees the app is awake. Awaiting `compact()` first puts the
         // nook into a visible state so the event fires immediately instead of queuing.
         Task { @MainActor in
-            await nook.compact()
+            await nook.compact(on: resolveScreen())
             nook.playFeedback(.shimmer, duration: 1.1)
         }
+    }
+
+    // MARK: - Display targeting
+
+    /// Resolve the user's persisted display preference to a concrete screen.
+    /// `nil` only when no display is attached at all.
+    func resolveScreen() -> NSScreen? {
+        NookScreenLocator.screen(matching: appState.displayPreference)
+    }
+
+    /// Project the persisted display preference onto the surface, and re-place the
+    /// chrome live when the user picks a different display in Settings.
+    ///
+    /// `Nook.screenProvider` is what makes the preference stick *without* an explicit
+    /// screen on every call site — the surface consults it on hover transitions and on
+    /// display connect/disconnect too, so the disconnect fallback in
+    /// ``NookScreenLocator/screen(matching:)`` flows through automatically.
+    private func configureDisplayTargeting() {
+        nook.screenProvider = { [weak self] in self?.resolveScreen() }
+
+        appState.$displayPreference
+            .dropFirst()
+            .removeDuplicates()
+            .receive(on: RunLoop.main)
+            .sink { [weak self] preference in
+                guard let self else { return }
+                let screen = NookScreenLocator.screen(matching: preference)
+                Task { @MainActor in
+                    // Re-place whichever way the chrome is currently showing. A hidden
+                    // nook needs nothing — its next expand/compact rebuilds on the new
+                    // screen via `screenProvider`.
+                    if self.appState.isNookVisible {
+                        await self.nook.expand(on: screen)
+                    } else if self.nook.windowController != nil {
+                        await self.nook.compact(on: screen)
+                    }
+                }
+            }
+            .store(in: &cancellables)
     }
 
     // MARK: - Chrome / backdrop
@@ -171,6 +211,11 @@ public final class AppCoordinator: ObservableObject {
     }
 
     func syncNotchBackdrop() {
+        // Project the chrome-layout preference onto the surface. `Nook.presentation`
+        // rebuilds a visible window in place when this changes, so flipping the
+        // Layout picker re-places the chrome immediately.
+        nook.presentation = appState.appearancePreferences.presentation
+
         let scheme = appState.appearancePreferences.effectiveColorScheme(systemScheme: currentResolvedSystemScheme())
         let reduceTransparency = NSWorkspace.shared.accessibilityDisplayShouldReduceTransparency
         // Pin the window appearance first: the backdrop's visual-effect material resolves
@@ -257,6 +302,7 @@ public final class AppCoordinator: ObservableObject {
         appState.appearancePreferences = .default
         NookAppearanceStore.save(.default)
         appState.replaceHotkey(.default)
+        appState.replaceDisplayPreference(.default)
         nook.staysExpandedOnHoverExit = false
         syncNotchBackdrop()
     }

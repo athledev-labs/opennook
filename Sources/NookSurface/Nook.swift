@@ -47,6 +47,28 @@ where Expanded: View, CompactLeading: View, CompactTrailing: View {
 
     public var transitionConfiguration = NookTransitionConfiguration()
 
+    /// Resolves the screen the chrome should occupy when a caller doesn't pass one
+    /// explicitly. Host apps set this to project a persisted display preference
+    /// (built-in / main / a specific display) onto the surface — the closure is
+    /// consulted on every `expand`/`compact` with a `nil` screen, on hover-driven
+    /// transitions, and whenever the display set changes. Returning `nil` falls
+    /// through to the window's current screen, then the system's main screen.
+    public var screenProvider: (() -> NSScreen?)?
+
+    /// How the chrome presents itself — notch-fused, free-floating, or `.auto` (notch on
+    /// a notched display, floating elsewhere). See ``NookPresentation``.
+    ///
+    /// The effective layout is resolved per-window against the target screen; changing
+    /// this rebuilds a currently-visible window in place so the new layout takes effect
+    /// immediately. A hidden nook simply picks it up on its next `expand`/`compact`.
+    public var presentation: NookPresentation = .auto {
+        didSet {
+            guard presentation != oldValue, state != .hidden, let screen = resolvedScreen else { return }
+            initializeWindow(screen: screen, orderFront: false)
+            showWindow()
+        }
+    }
+
     let expandedContent: Expanded
     let compactLeadingContent: CompactLeading
     let compactTrailingContent: CompactTrailing
@@ -56,6 +78,11 @@ where Expanded: View, CompactLeading: View, CompactTrailing: View {
     @Published private(set) var state: NookState = .hidden
     @Published private(set) var notchSize: CGSize = .zero
     @Published private(set) var menubarHeight: CGFloat = 0
+
+    /// Layout resolved for the current window's screen — `.notch` or `.floating`.
+    /// Recomputed every time the panel window is built (see `initializeWindow`); drives
+    /// `NookView`'s shape and positioning.
+    @Published private(set) var layoutForm: NookChromeForm = .notch
     @Published public private(set) var isHovering: Bool = false
     @Published public var staysExpandedOnHoverExit: Bool = false
 
@@ -152,16 +179,38 @@ where Expanded: View, CompactLeading: View, CompactTrailing: View {
             .store(in: &cancellables)
     }
 
-    /// Recreate the panel on screen-parameter changes (display add/remove, resolution changes).
-    /// Combine sink keeps the observer's lifetime tied to `Nook` and frees us from an unstructured
-    /// `Task` whose cancellation we never wired up.
+    /// The screen the chrome should occupy when no explicit screen is supplied.
+    /// Consults the host-supplied ``screenProvider`` first, then the window's current
+    /// screen, then the system. `nil` only when no display is attached at all.
+    var resolvedScreen: NSScreen? {
+        screenProvider?()
+            ?? windowController?.window?.screen
+            ?? NSScreen.main
+            ?? NSScreen.screens.first
+    }
+
+    /// Re-place the panel on screen-parameter changes (display add/remove, resolution
+    /// or arrangement changes). Combine sink keeps the observer's lifetime tied to
+    /// `Nook` and frees us from an unstructured `Task` whose cancellation we never
+    /// wired up.
+    ///
+    /// While hidden there's no window worth keeping — drop any stale one so the next
+    /// `expand`/`compact` rebuilds on the then-current preferred screen. While visible,
+    /// recompute the target via ``resolvedScreen`` and re-show there, so a host's
+    /// display preference (and its disconnect fallback) follows the chrome live.
     private func observeScreenParameters() {
         NotificationCenter.default
             .publisher(for: NSApplication.didChangeScreenParametersNotification)
             .receive(on: RunLoop.main)
             .sink { [weak self] _ in
-                guard let self, let screen = NSScreen.screens.first else { return }
-                self.initializeWindow(screen: screen)
+                guard let self else { return }
+                guard self.state != .hidden else {
+                    self.deinitializeWindow()
+                    return
+                }
+                guard let screen = self.resolvedScreen else { return }
+                self.initializeWindow(screen: screen, orderFront: false)
+                self.showWindow()
             }
             .store(in: &cancellables)
     }
@@ -181,7 +230,7 @@ where Expanded: View, CompactLeading: View, CompactTrailing: View {
             return
         }
 
-        let screen = windowController?.window?.screen ?? NSScreen.screens[0]
+        guard let screen = windowController?.window?.screen ?? resolvedScreen else { return }
         Task {
             if hovering {
                 await _expand(on: screen, skipHide: true)
@@ -195,12 +244,18 @@ where Expanded: View, CompactLeading: View, CompactTrailing: View {
 // MARK: - Public lifecycle
 
 public extension Nook {
-    func expand(on screen: NSScreen = NSScreen.screens[0]) async {
-        await _expand(on: screen, skipHide: transitionConfiguration.skipIntermediateHides)
+    /// Expand the chrome. Pass `nil` (the default) to let ``resolvedScreen`` pick the
+    /// target — typically the host's persisted display preference via ``screenProvider``.
+    func expand(on screen: NSScreen? = nil) async {
+        guard let target = screen ?? resolvedScreen else { return }
+        await _expand(on: target, skipHide: transitionConfiguration.skipIntermediateHides)
     }
 
-    func compact(on screen: NSScreen = NSScreen.screens[0]) async {
-        await _compact(on: screen, skipHide: transitionConfiguration.skipIntermediateHides)
+    /// Collapse the chrome to its compact pill. Pass `nil` (the default) to let
+    /// ``resolvedScreen`` pick the target.
+    func compact(on screen: NSScreen? = nil) async {
+        guard let target = screen ?? resolvedScreen else { return }
+        await _compact(on: target, skipHide: transitionConfiguration.skipIntermediateHides)
     }
 
     func hide() async {
@@ -255,8 +310,11 @@ public extension Nook {
 }
 
 extension Nook {
-    func _expand(on screen: NSScreen = NSScreen.screens[0], skipHide: Bool) async {
-        guard state != .expanded else { return }
+    func _expand(on screen: NSScreen, skipHide: Bool) async {
+        // Already expanded *on the requested screen* — nothing to do. A different
+        // screen still needs work: the window must move, so fall through to the
+        // rebuild path, which `needsNewWindow` below already handles.
+        if state == .expanded, windowController?.window?.screen == screen { return }
 
         // Opening the nook acknowledges any *repeating* peripheral cue — those are meant
         // to keep nagging until the user looks, so once they're looking we kill them. A
@@ -303,8 +361,10 @@ extension Nook {
         try? await Task.sleep(for: .seconds(0.55))
     }
 
-    func _compact(on screen: NSScreen = NSScreen.screens[0], skipHide: Bool) async {
-        guard state != .compact else { return }
+    func _compact(on screen: NSScreen, skipHide: Bool) async {
+        // Already compact *on the requested screen* — nothing to do. A different
+        // screen still needs the window moved, so fall through to the rebuild path.
+        if state == .compact, windowController?.window?.screen == screen { return }
 
         if disableCompactLeading, disableCompactTrailing {
             await hide()
@@ -422,6 +482,7 @@ private extension Nook {
 
         notchSize = screen.notchFrameWithMenubarAsBackup.size
         menubarHeight = screen.menubarHeight
+        layoutForm = presentation.isFloating(screenHasNotch: screen.hasNotch) ? .floating : .notch
 
         let hostingView = NSHostingView(rootView: NookContentView(nook: self))
         hostingView.wantsLayer = true
@@ -521,7 +582,7 @@ extension Nook: NookDragDestination {
         isDragInFlight = true
 
         if state == .compact || state == .hidden {
-            let screen = windowController?.window?.screen ?? NSScreen.screens.first ?? NSScreen.main
+            let screen = windowController?.window?.screen ?? resolvedScreen
             if let screen {
                 Task { await _expand(on: screen, skipHide: true) }
             }
@@ -539,7 +600,7 @@ extension Nook: NookDragDestination {
         stateBeforeDrag = nil
 
         guard let prior else { return }
-        let screen = windowController?.window?.screen ?? NSScreen.screens.first ?? NSScreen.main
+        let screen = windowController?.window?.screen ?? resolvedScreen
         guard let screen else { return }
         Task {
             switch prior {
@@ -563,7 +624,7 @@ extension Nook: NookDragDestination {
         stateBeforeDrag = nil
 
         if !accepted, let prior {
-            let screen = windowController?.window?.screen ?? NSScreen.screens.first ?? NSScreen.main
+            let screen = windowController?.window?.screen ?? resolvedScreen
             if let screen {
                 Task {
                     switch prior {

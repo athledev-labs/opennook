@@ -48,7 +48,7 @@ let package = Package(
         ),
         .testTarget(
             name: "NookKitTests",
-            dependencies: ["NookKit"],
+            dependencies: ["NookKit", "NookSurface"],
             path: "Tests/NookKitTests"
         )
     ]

@@ -5,6 +5,7 @@
 // you may not use this file except in compliance with the License.
 // A copy is included at /LICENSE in the repository root.
 
+import NookSurface
 import XCTest
 @testable import NookKit
 
@@ -25,6 +26,7 @@ final class NookAppearancePreferencesTests: XCTestCase {
         let original = NookAppearancePreferences(
             chromePalette: .light,
             surfaceStyle: .translucent,
+            presentation: .floating,
             hapticFeedbackEnabled: true
         )
 
@@ -44,6 +46,7 @@ final class NookAppearancePreferencesTests: XCTestCase {
 
         XCTAssertEqual(decoded.chromePalette, .dark)
         XCTAssertEqual(decoded.surfaceStyle, .solid)    // default
+        XCTAssertEqual(decoded.presentation, .auto)     // default
         XCTAssertFalse(decoded.hapticFeedbackEnabled)   // default
     }
 }

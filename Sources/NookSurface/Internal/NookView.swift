@@ -22,6 +22,12 @@ where Expanded: View, CompactLeading: View, CompactTrailing: View {
         self.nook = nook
     }
 
+    /// `true` when the surface should render the free-floating panel instead of the
+    /// notch-fused shape — a display with no notch, or a forced `.floating` presentation.
+    private var isFloating: Bool {
+        nook.layoutForm == .floating
+    }
+
     private var expandedCornerRadii: (top: CGFloat, bottom: CGFloat) {
         (top: nook.style.topCornerRadius, bottom: nook.style.bottomCornerRadius)
     }
@@ -30,16 +36,36 @@ where Expanded: View, CompactLeading: View, CompactTrailing: View {
         (top: 6, bottom: 14)
     }
 
+    /// Floating panels use convex corners — a card when expanded, a capsule when
+    /// compact (radius = half the pill height). No notch ears to fuse, so the same
+    /// radius applies to all four corners.
+    private var floatingExpandedRadius: CGFloat { expandedCornerRadii.bottom }
+    private var floatingCompactRadius: CGFloat { max(nook.notchSize.height / 2, 8) }
+
+    /// Vertical gap that drops the floating panel clear of the menu bar. Zero in notch
+    /// mode, where the chrome is meant to sit flush against the top edge.
+    private var floatingTopInset: CGFloat {
+        isFloating ? nook.menubarHeight + 8 : 0
+    }
+
     private var minWidth: CGFloat {
-        nook.notchSize.width + (topCornerRadius * 2)
+        // A floating panel is purely content-driven; only the notch shape needs a
+        // minimum (the notch gap plus its ears).
+        isFloating ? 0 : nook.notchSize.width + (topCornerRadius * 2)
     }
 
     private var topCornerRadius: CGFloat {
-        nook.state == .expanded ? expandedCornerRadii.top : compactCornerRadii.top
+        if isFloating {
+            return nook.state == .expanded ? floatingExpandedRadius : floatingCompactRadius
+        }
+        return nook.state == .expanded ? expandedCornerRadii.top : compactCornerRadii.top
     }
 
     private var bottomCornerRadius: CGFloat {
-        nook.state == .expanded ? expandedCornerRadii.bottom : compactCornerRadii.bottom
+        if isFloating {
+            return nook.state == .expanded ? floatingExpandedRadius : floatingCompactRadius
+        }
+        return nook.state == .expanded ? expandedCornerRadii.bottom : compactCornerRadii.bottom
     }
 
     /// In compact mode, slot-width asymmetry shifts the whole shape so the gap stays centered on the notch.
@@ -47,8 +73,10 @@ where Expanded: View, CompactLeading: View, CompactTrailing: View {
         nook.state == .compact ? compactXOffset : 0
     }
 
+    /// Notch mode re-centers the shape on the physical notch when the leading/trailing
+    /// slots differ in width. A floating pill has no notch to center on, so it stays put.
     private var compactXOffset: CGFloat {
-        (compactTrailingWidth - compactLeadingWidth) / 2
+        isFloating ? 0 : (compactTrailingWidth - compactLeadingWidth) / 2
     }
 
     /// Backdrop sits behind chrome content, both flattened into a single layer, then clipped
@@ -71,6 +99,10 @@ where Expanded: View, CompactLeading: View, CompactTrailing: View {
             .contentShape(notchShape)
             .onHover(perform: nook.updateHoverState)
             .offset(x: xOffset)
+            // Floating mode drops the panel below the menu bar; notch mode keeps it
+            // flush to the top edge (inset 0). Applied outside the clipped chrome so it
+            // shifts the whole shape without distorting it or the hover region.
+            .padding(.top, floatingTopInset)
             .animation(nook.effectiveConversionAnimation, value: nook.state)
             .animation(nook.effectiveConversionAnimation, value: [compactLeadingWidth, compactTrailingWidth])
     }
@@ -81,6 +113,7 @@ where Expanded: View, CompactLeading: View, CompactTrailing: View {
     private func feedbackOverlay() -> some View {
         NookFeedbackOverlay(
             event: nook.feedbackEvent,
+            form: nook.layoutForm,
             topCornerRadius: topCornerRadius,
             bottomCornerRadius: bottomCornerRadius,
             reduceMotion: reduceMotion
@@ -89,6 +122,7 @@ where Expanded: View, CompactLeading: View, CompactTrailing: View {
 
     private var notchShape: NookShape {
         NookShape(
+            form: nook.layoutForm,
             topCornerRadius: topCornerRadius,
             bottomCornerRadius: bottomCornerRadius
         )
@@ -127,7 +161,9 @@ where Expanded: View, CompactLeading: View, CompactTrailing: View {
                 .fixedSize()
                 .offset(x: nook.state == .compact ? 0 : compactXOffset)
                 .frame(
-                    width: nook.state == .compact ? nil : nook.notchSize.width,
+                    // Notch mode reserves the notch width while expanded so the
+                    // collapsed slots line up; a floating pill is content-driven.
+                    width: (nook.state == .compact || isFloating) ? nil : nook.notchSize.width,
                     height: (nook.state == .compact && nook.isHovering) ? nook.menubarHeight : nook.notchSize.height
                 )
 
@@ -155,8 +191,11 @@ where Expanded: View, CompactLeading: View, CompactTrailing: View {
                     .transition(.blur(intensity: 6).combined(with: .scale(x: 0, anchor: .trailing)).combined(with: .opacity))
             }
 
+            // Notch mode: a gap exactly the notch width, so the leading/trailing slots
+            // straddle the physical notch. Floating mode: no notch — just a small gap
+            // keeping the two slots from touching inside the pill.
             Spacer()
-                .frame(width: nook.notchSize.width)
+                .frame(width: isFloating ? 8 : nook.notchSize.width)
 
             if nook.state == .compact, !nook.disableCompactTrailing {
                 nook.compactTrailingContent
@@ -191,6 +230,6 @@ where Expanded: View, CompactLeading: View, CompactTrailing: View {
         .safeAreaInset(edge: .bottom, spacing: 0) { Color.clear.frame(height: safeAreaInset) }
         .safeAreaInset(edge: .leading, spacing: 0) { Color.clear.frame(width: safeAreaInset) }
         .safeAreaInset(edge: .trailing, spacing: 0) { Color.clear.frame(width: safeAreaInset) }
-        .frame(minWidth: nook.notchSize.width)
+        .frame(minWidth: isFloating ? 0 : nook.notchSize.width)
     }
 }

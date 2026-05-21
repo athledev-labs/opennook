@@ -49,6 +49,11 @@ struct SettingsView: View {
                     AppearanceSettingsSection(appState: appState)
                 }
 
+                SettingsSectionLabel("Display")
+                SettingsGroupedPanel {
+                    DisplaySettingsSection(appState: appState)
+                }
+
                 SettingsSectionLabel("Shortcut & nook")
                 SettingsGroupedPanel {
                     VStack(spacing: 0) {
@@ -78,7 +83,7 @@ struct SettingsView: View {
                 SettingsGroupedPanel {
                     SettingsDataCommandRow(
                         title: "Reset All Settings",
-                        subtitle: "Theme, surface, hotkey, stay expanded",
+                        subtitle: "Theme, surface, layout, display, hotkey, stay expanded",
                         icon: "arrow.counterclockwise",
                         style: .standard,
                         action: onResetAllSettings

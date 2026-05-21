@@ -5,6 +5,7 @@
 // you may not use this file except in compliance with the License.
 // A copy is included at /LICENSE in the repository root.
 
+import NookSurface
 import SwiftUI
 
 /// Theme + surface pickers. Lives inside the Appearance settings group.
@@ -43,6 +44,35 @@ struct AppearanceSettingsSection: View {
                     .foregroundStyle(theme.tertiaryLabel)
                     .fixedSize(horizontal: false, vertical: true)
             }
+
+            VStack(alignment: .leading, spacing: 5) {
+                labeledPicker(title: "Layout", accessibilityLabel: "Chrome layout") {
+                    Picker("Layout", selection: presentationBinding) {
+                        Text("Auto").tag(NookPresentation.auto)
+                        Text("Notch").tag(NookPresentation.notch)
+                        Text("Floating").tag(NookPresentation.floating)
+                    }
+                    .pickerStyle(.segmented)
+                    .labelsHidden()
+                    .controlSize(.small)
+                }
+
+                Text(presentationDescription)
+                    .font(.system(size: 10, weight: .regular))
+                    .foregroundStyle(theme.tertiaryLabel)
+                    .fixedSize(horizontal: false, vertical: true)
+            }
+        }
+    }
+
+    private var presentationDescription: String {
+        switch presentationBinding.wrappedValue {
+        case .auto:
+            return "Auto uses the notch shape on a notched display and a floating panel on any other."
+        case .notch:
+            return "Notch always uses the notch shape, even on a display without one."
+        case .floating:
+            return "Floating always shows a free-standing panel below the menu bar."
         }
     }
 
@@ -74,6 +104,17 @@ struct AppearanceSettingsSection: View {
             set: { next in
                 var prefs = appState.appearancePreferences
                 prefs.surfaceStyle = next
+                appState.replaceAppearancePreferences(prefs)
+            }
+        )
+    }
+
+    private var presentationBinding: Binding<NookPresentation> {
+        Binding(
+            get: { appState.appearancePreferences.presentation },
+            set: { next in
+                var prefs = appState.appearancePreferences
+                prefs.presentation = next
                 appState.replaceAppearancePreferences(prefs)
             }
         )

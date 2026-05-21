@@ -20,6 +20,10 @@ public final class AppState: ObservableObject {
     @Published public private(set) var viewMode: NookViewMode = .home
     @Published public var appearancePreferences = NookAppearancePreferences.default
     @Published public var hotkey = NookHotkey.default
+
+    /// Which display the Nook chrome appears on. The coordinator projects this onto
+    /// the surface (`Nook.screenProvider`) and re-places the chrome when it changes.
+    @Published public var displayPreference = NookDisplayPreference.default
     @Published public var keepNookOpen = false
     @Published public var isNookVisible = false
     @Published public var errorMessage: String?
@@ -36,6 +40,7 @@ public final class AppState: ObservableObject {
     public init() {
         appearancePreferences = NookAppearanceStore.load()
         hotkey = NookHotkeyStore.load()
+        displayPreference = NookDisplayStore.load()
     }
 
     public func replaceAppearancePreferences(_ preferences: NookAppearancePreferences) {
@@ -52,6 +57,14 @@ public final class AppState: ObservableObject {
         }
         self.hotkey = hotkey
         NookHotkeyStore.save(hotkey)
+    }
+
+    public func replaceDisplayPreference(_ preference: NookDisplayPreference) {
+        guard preference != displayPreference else {
+            return
+        }
+        displayPreference = preference
+        NookDisplayStore.save(preference)
     }
 
     public var isHomeView: Bool {

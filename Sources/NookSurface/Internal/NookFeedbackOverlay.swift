@@ -29,6 +29,7 @@ import SwiftUI
 /// reading as added light against the dark backdrop without overdarkening on light themes.
 struct NookFeedbackOverlay: View {
     let event: NookFeedbackEvent?
+    let form: NookChromeForm
     let topCornerRadius: CGFloat
     let bottomCornerRadius: CGFloat
     let reduceMotion: Bool
@@ -103,13 +104,13 @@ struct NookFeedbackOverlay: View {
         return ZStack {
             // Soft ambient halo that pulses with the shimmer — gives the perimeter weight at
             // peripheral vision so the cue reads even when the user isn't directly looking.
-            NookShape(topCornerRadius: topCornerRadius, bottomCornerRadius: bottomCornerRadius)
+            NookShape(form: form, topCornerRadius: topCornerRadius, bottomCornerRadius: bottomCornerRadius)
                 .stroke(event.tint.opacity(0.55), lineWidth: 8.0)
                 .blur(radius: 3.0)
                 .opacity(envelope * 0.9)
                 .blendMode(.plusLighter)
 
-            NookShape(topCornerRadius: topCornerRadius, bottomCornerRadius: bottomCornerRadius)
+            NookShape(form: form, topCornerRadius: topCornerRadius, bottomCornerRadius: bottomCornerRadius)
                 .stroke(gradient, lineWidth: 6.0)
                 .opacity(envelope)
                 .blendMode(.plusLighter)
@@ -121,7 +122,7 @@ struct NookFeedbackOverlay: View {
     /// vestibular cost of moving content.
     private func saturationCrossfade(event: NookFeedbackEvent, progress: Double) -> some View {
         let envelope = sin(progress * .pi) * 0.7
-        return NookShape(topCornerRadius: topCornerRadius, bottomCornerRadius: bottomCornerRadius)
+        return NookShape(form: form, topCornerRadius: topCornerRadius, bottomCornerRadius: bottomCornerRadius)
             .stroke(event.tint, lineWidth: 4.0)
             .opacity(envelope)
             .blendMode(.plusLighter)
