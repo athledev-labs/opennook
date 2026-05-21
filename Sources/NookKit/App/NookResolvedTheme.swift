@@ -27,6 +27,30 @@ public struct NookResolvedTheme: Sendable {
 
     public var headerInactiveIcon: Color
 
+    /// Memberwise initializer. Host apps building a custom palette construct one
+    /// directly and feed it to ``NookConfiguration/theme``; the framework's own
+    /// palette is produced by ``resolve(preferences:effectiveColorScheme:reduceTransparency:)``.
+    ///
+    /// Every color should be an explicit black/white-at-opacity value — see the type
+    /// note above on why system-adaptive colors render wrong on the nook's panel.
+    public init(
+        primaryLabel: Color,
+        secondaryLabel: Color,
+        tertiaryLabel: Color,
+        quaternaryLabel: Color,
+        subtleFill: Color,
+        subtleStroke: Color,
+        headerInactiveIcon: Color
+    ) {
+        self.primaryLabel = primaryLabel
+        self.secondaryLabel = secondaryLabel
+        self.tertiaryLabel = tertiaryLabel
+        self.quaternaryLabel = quaternaryLabel
+        self.subtleFill = subtleFill
+        self.subtleStroke = subtleStroke
+        self.headerInactiveIcon = headerInactiveIcon
+    }
+
     public static func resolve(
         preferences: NookAppearancePreferences,
         effectiveColorScheme: ColorScheme,
@@ -89,11 +113,15 @@ public extension EnvironmentValues {
 }
 
 public extension NookResolvedTheme {
-    /// Resolves chrome using saved prefs, **`NSApp.effectiveAppearance`** for “Match Mac”
-    /// (SwiftUI’s `colorScheme` is unreliable on menu-bar panels), and Reduce Transparency.
+    /// Resolves chrome using saved prefs, the **application's effective appearance** for
+    /// “Match Mac” (SwiftUI’s `colorScheme` is unreliable on menu-bar panels), and Reduce
+    /// Transparency.
+    ///
+    /// Reads the appearance off `NSApplication.shared` rather than the `NSApp` global so
+    /// it stays safe before the app has finished launching (and callable from tests).
     static func live(appState: AppState) -> NookResolvedTheme {
         let systemScheme: ColorScheme =
-            NSApp.effectiveAppearance.bestMatch(from: [.darkAqua, .aqua]) == .darkAqua ? .dark : .light
+            NSApplication.shared.effectiveAppearance.bestMatch(from: [.darkAqua, .aqua]) == .darkAqua ? .dark : .light
         let scheme = appState.appearancePreferences.effectiveColorScheme(systemScheme: systemScheme)
         return resolve(
             preferences: appState.appearancePreferences,

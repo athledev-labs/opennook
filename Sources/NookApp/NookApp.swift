@@ -6,26 +6,45 @@
 // A copy is included at /LICENSE in the repository root.
 
 import AppKit
-import NookKit
 import SwiftUI
+
+// Re-exported so a host app needs only `import NookApp` to reach the registration API
+// (`NookConfiguration`, `NookResolvedTheme`, `AppState`, …) and the surface types.
+@_exported import NookKit
+@_exported import NookSurface
 
 /// Library entry point shared by the SPM executable trampoline
 /// (`Sources/NookExecutable/main.swift`) and the Xcode app target's
 /// `App/main.swift`. Both call into the same boot sequence here so behavior
 /// cannot drift between launch surfaces.
 public enum NookApp {
-    /// Synchronous entry point. The OS calls this from the process's main
-    /// thread at startup, so we assert that invariant via
-    /// `MainActor.assumeIsolated` and run the actual setup on the main actor.
-    public static func main() {
+    /// Boots a notch app with the given ``NookConfiguration``. The default value
+    /// reproduces the framework demo, so `NookApp.main()` is unchanged.
+    ///
+    /// The OS calls this from the process's main thread at startup, so we assert that
+    /// invariant via `MainActor.assumeIsolated` and run the actual setup on the main actor.
+    public static func main(_ configuration: NookConfiguration = NookConfiguration()) {
         MainActor.assumeIsolated {
             let app = NSApplication.shared
-            let delegate = AppDelegate()
+            let delegate = AppDelegate(configuration: configuration)
             app.delegate = delegate
             app.setActivationPolicy(.accessory)
             app.run()
             withExtendedLifetime(delegate) {}
         }
+    }
+
+    /// "Register a view, go" — boots a notch app whose expanded home surface is the
+    /// supplied view. Everything else (top bar, Settings, compact glyphs, theme) keeps
+    /// the framework defaults.
+    ///
+    /// ```swift
+    /// NookApp.main { MyHomeView() }
+    /// ```
+    public static func main<Home: View>(@ViewBuilder home: @escaping () -> Home) {
+        var configuration = NookConfiguration()
+        configuration.setHome(home)
+        main(configuration)
     }
 }
 
@@ -34,8 +53,8 @@ private final class AppDelegate: NSObject, NSApplicationDelegate {
     private let coordinator: AppCoordinator
     private var statusItem: NSStatusItem?
 
-    override init() {
-        self.coordinator = AppCoordinator()
+    init(configuration: NookConfiguration) {
+        self.coordinator = AppCoordinator(configuration: configuration)
         super.init()
     }
 

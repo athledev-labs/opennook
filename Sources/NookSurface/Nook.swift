@@ -75,7 +75,11 @@ where Expanded: View, CompactLeading: View, CompactTrailing: View {
     @Published var disableCompactLeading: Bool = false
     @Published var disableCompactTrailing: Bool = false
 
-    @Published private(set) var state: NookState = .hidden
+    /// Current lifecycle state. Host apps can observe this directly (it's `@Published`)
+    /// or react through the ``onExpand`` / ``onCompact`` / ``onHide`` callbacks — the
+    /// callbacks fire on every transition, including hover- and drag-driven ones that
+    /// never pass through a host-called `expand`/`compact`.
+    @Published public private(set) var state: NookState = .hidden
     @Published private(set) var notchSize: CGSize = .zero
     @Published private(set) var menubarHeight: CGFloat = 0
 
@@ -95,6 +99,17 @@ where Expanded: View, CompactLeading: View, CompactTrailing: View {
     /// `true` accepts the drop; `false` rejects it. Set by the app layer to route the URLs
     /// through whatever registration / import flow it owns.
     public var onFileDrop: (([URL]) -> Bool)?
+
+    /// Fired when the chrome transitions **into** the expanded surface — from any source:
+    /// a host-called `expand`, a hover-grow, or a file drag auto-expanding the panel.
+    public var onExpand: (() -> Void)?
+
+    /// Fired when the chrome transitions **into** the compact pill.
+    public var onCompact: (() -> Void)?
+
+    /// Fired when the chrome transitions **into** the hidden state. Note the cold-launch
+    /// sequence collapses to compact, so `onHide` only fires on a genuine hide afterwards.
+    public var onHide: (() -> Void)?
 
     /// Snapshot of `state` at the moment the drag entered. Lets `draggingExited` restore
     /// the prior compact/expanded shape if the user releases outside the panel — we don't
@@ -142,6 +157,7 @@ where Expanded: View, CompactLeading: View, CompactTrailing: View {
 
         observeScreenParameters()
         observeStateForPendingFeedback()
+        observeStateForLifecycleHooks()
     }
 
     /// Convenience for the no-compact-content case. Compact mode collapses to hide.
@@ -175,6 +191,27 @@ where Expanded: View, CompactLeading: View, CompactTrailing: View {
                 guard let self, newState != .hidden, let pending = self.pendingFeedback else { return }
                 self.pendingFeedback = nil
                 self.feedbackEvent = pending
+            }
+            .store(in: &cancellables)
+    }
+
+    /// Fire the host's lifecycle callbacks on every distinct state transition. A single
+    /// `$state` sink catches transitions from *all* sources uniformly — host-called
+    /// `expand`/`compact`, hover-driven grow/shrink, drag auto-expand — which is why the
+    /// hooks live here rather than on a higher-level coordinator. `dropFirst()` skips the
+    /// initial `.hidden` published at construction; `removeDuplicates()` collapses no-op
+    /// re-publishes so a hook never double-fires for one logical transition.
+    private func observeStateForLifecycleHooks() {
+        $state
+            .dropFirst()
+            .removeDuplicates()
+            .sink { [weak self] newState in
+                guard let self else { return }
+                switch newState {
+                case .expanded: self.onExpand?()
+                case .compact: self.onCompact?()
+                case .hidden: self.onHide?()
+                }
             }
             .store(in: &cancellables)
     }

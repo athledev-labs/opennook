@@ -8,9 +8,12 @@
 import AppKit
 import SwiftUI
 
-/// Top-level expanded notch surface. Renders the top bar, then either the home placeholder
-/// or the settings panel. Fork this to plug your product surface in where `homeSurface`
-/// lives now.
+/// Top-level expanded notch surface. Renders the framework chrome — top bar plus the
+/// Settings panel — and hosts the host app's registered `home` content in between.
+///
+/// The home surface is injected, not forked: `NookConfiguration` supplies the `home`
+/// closure (defaulting to ``NookPlaceholderHomeView``). The top bar and Settings stay
+/// framework-owned so every notch app gets them for free.
 ///
 /// Sizing: the chrome sizes the panel to whatever this view measures. The demo pins a
 /// stable `NookLayout.width` so the panel doesn't resize between the home and settings
@@ -23,6 +26,13 @@ public struct NookExpandedView: View {
     let hide: () -> Void
     let resetAllSettings: () -> Void
 
+    /// Resolves the chrome palette for each layout pass. Host apps override this through
+    /// ``NookConfiguration/theme``; the default is ``NookResolvedTheme/live(appState:)``.
+    let theme: (AppState) -> NookResolvedTheme
+
+    /// Host-registered home content, shown between the top bar and (when toggled) Settings.
+    let home: () -> AnyView
+
     @State private var isHomeIconHovered = false
 
     public init(
@@ -30,17 +40,21 @@ public struct NookExpandedView: View {
         services: AppServices,
         toggleKeepOpen: @escaping () -> Void,
         hide: @escaping () -> Void,
-        resetAllSettings: @escaping () -> Void
+        resetAllSettings: @escaping () -> Void,
+        theme: @escaping (AppState) -> NookResolvedTheme = NookResolvedTheme.live,
+        home: @escaping () -> AnyView = { AnyView(NookPlaceholderHomeView()) }
     ) {
         self.appState = appState
         self.services = services
         self.toggleKeepOpen = toggleKeepOpen
         self.hide = hide
         self.resetAllSettings = resetAllSettings
+        self.theme = theme
+        self.home = home
     }
 
     private var resolvedTheme: NookResolvedTheme {
-        NookResolvedTheme.live(appState: appState)
+        theme(appState)
     }
 
     private var chromeInteractionAccent: Color {
@@ -95,21 +109,9 @@ public struct NookExpandedView: View {
         .animation(.spring(response: 0.34, dampingFraction: 0.86), value: appState.viewMode)
     }
 
-    /// Placeholder home surface. Replace with your product content when forking.
+    /// Host-registered home surface. Supplied via ``NookConfiguration`` — no fork needed.
     private var homeSurface: some View {
-        VStack(spacing: 10) {
-            Image(systemName: "sparkles")
-                .font(.system(size: 28, weight: .light))
-                .foregroundStyle(resolvedTheme.secondaryLabel)
-            Text("Nook")
-                .font(.system(size: 14, weight: .medium))
-                .foregroundStyle(resolvedTheme.primaryLabel)
-            Text("Replace this view to start building your notch app.")
-                .font(.system(size: 11, weight: .regular))
-                .foregroundStyle(resolvedTheme.tertiaryLabel)
-        }
-        .frame(maxWidth: .infinity)
-        .padding(.vertical, 40)
+        home()
     }
 
     private var settingsSurface: some View {

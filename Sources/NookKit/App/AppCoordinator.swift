@@ -18,6 +18,9 @@ public final class AppCoordinator: ObservableObject {
     public let appState: AppState
     public let services: AppServices
 
+    /// Host-supplied registration: home/compact content, theme, lifecycle hooks.
+    public let configuration: NookConfiguration
+
     enum NookAppearance {
         static let expandedTopCornerRadius: CGFloat = 19
         static let expandedBottomCornerRadius: CGFloat = 24
@@ -28,7 +31,7 @@ public final class AppCoordinator: ObservableObject {
     var accessibilityObserver: NSObjectProtocol?
 
     lazy var nook: Nook<AnyView, AnyView, AnyView> = {
-        Nook<AnyView, AnyView, AnyView>(
+        let nook = Nook<AnyView, AnyView, AnyView>(
             hoverBehavior: [],
             style: NookStyle(
                 topCornerRadius: NookAppearance.expandedTopCornerRadius,
@@ -40,26 +43,45 @@ public final class AppCoordinator: ObservableObject {
                     services: self.services,
                     toggleKeepOpen: { [weak self] in self?.toggleKeepNookOpen() },
                     hide: { [weak self] in self?.hideNook() },
-                    resetAllSettings: { [weak self] in self?.resetAllSettingsToDefaults() }
+                    resetAllSettings: { [weak self] in self?.resetAllSettingsToDefaults() },
+                    theme: self.configuration.theme,
+                    home: self.configuration.home
                 ))
             },
             compactLeading: {
-                AnyView(NookCompactLeadingView(appState: self.appState))
+                AnyView(NookCompactHost(
+                    appState: self.appState,
+                    theme: self.configuration.theme,
+                    content: self.configuration.compactLeading
+                ))
             },
             compactTrailing: {
-                AnyView(NookCompactTrailingView(appState: self.appState))
+                AnyView(NookCompactHost(
+                    appState: self.appState,
+                    theme: self.configuration.theme,
+                    content: self.configuration.compactTrailing
+                ))
             }
         )
+        // Project the host's lifecycle callbacks onto the surface. The hooks fire on the
+        // surface's own state transitions, so hover- and drag-driven changes reach the
+        // host too — not just coordinator-initiated show/hide.
+        nook.onExpand = self.configuration.onExpand
+        nook.onCompact = self.configuration.onCompact
+        nook.onHide = self.configuration.onHide
+        return nook
     }()
 
     public init(
         appState: AppState = AppState(),
         services: AppServices = AppServices(),
-        hotkeyController: HotkeyController = HotkeyController()
+        hotkeyController: HotkeyController = HotkeyController(),
+        configuration: NookConfiguration = NookConfiguration()
     ) {
         self.appState = appState
         self.services = services
         self.hotkeyController = hotkeyController
+        self.configuration = configuration
 
         bindBackdropSynchronization()
     }

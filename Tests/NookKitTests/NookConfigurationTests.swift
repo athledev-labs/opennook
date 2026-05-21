@@ -1,0 +1,72 @@
+// SPDX-License-Identifier: Apache-2.0
+// Copyright (c) 2026 Glendon Chin
+//
+// Licensed under the Apache License, Version 2.0 (the "License");
+// you may not use this file except in compliance with the License.
+// A copy is included at /LICENSE in the repository root.
+
+import SwiftUI
+import XCTest
+@testable import NookKit
+
+final class NookConfigurationTests: XCTestCase {
+    /// The default configuration must reproduce the demo: every content closure is
+    /// populated, the theme provider resolves, and no lifecycle hooks are set.
+    func testDefaultConfigurationIsComplete() {
+        let configuration = NookConfiguration()
+
+        // Content closures are non-optional — invoking them must not trap.
+        _ = configuration.home()
+        _ = configuration.compactLeading()
+        _ = configuration.compactTrailing()
+        // Default provider is NookResolvedTheme.live; resolving it must succeed.
+        _ = configuration.theme(AppState())
+
+        XCTAssertNil(configuration.onExpand)
+        XCTAssertNil(configuration.onCompact)
+        XCTAssertNil(configuration.onHide)
+    }
+
+    /// A host-supplied theme provider replaces the live one.
+    func testCustomThemeProviderIsUsed() {
+        let custom = NookResolvedTheme(
+            primaryLabel: .red,
+            secondaryLabel: .red,
+            tertiaryLabel: .red,
+            quaternaryLabel: .red,
+            subtleFill: .red,
+            subtleStroke: .red,
+            headerInactiveIcon: .red
+        )
+        var configuration = NookConfiguration()
+        configuration.theme = { _ in custom }
+
+        XCTAssertEqual(configuration.theme(AppState()).primaryLabel, .red)
+    }
+
+    /// The coordinator projects the configuration's lifecycle hooks onto the surface
+    /// so transitions from any source — host, hover, drag — reach the host.
+    @MainActor
+    func testCoordinatorProjectsLifecycleHooksOntoTheSurface() {
+        var configuration = NookConfiguration()
+        configuration.onExpand = {}
+        configuration.onCompact = {}
+        configuration.onHide = {}
+
+        let coordinator = AppCoordinator(configuration: configuration)
+
+        XCTAssertNotNil(coordinator.nook.onExpand)
+        XCTAssertNotNil(coordinator.nook.onCompact)
+        XCTAssertNotNil(coordinator.nook.onHide)
+    }
+
+    /// With no hooks configured, the surface's callbacks stay nil.
+    @MainActor
+    func testCoordinatorLeavesHooksNilWhenUnset() {
+        let coordinator = AppCoordinator(configuration: NookConfiguration())
+
+        XCTAssertNil(coordinator.nook.onExpand)
+        XCTAssertNil(coordinator.nook.onCompact)
+        XCTAssertNil(coordinator.nook.onHide)
+    }
+}

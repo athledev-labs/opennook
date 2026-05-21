@@ -17,7 +17,13 @@ let package = Package(
         // call `NookApp.main()` from `App/main.swift`. Same module the SPM
         // trampoline links against — behavior cannot drift between the two
         // launch surfaces.
-        .library(name: "NookApp", targets: ["NookApp"])
+        .library(name: "NookApp", targets: ["NookApp"]),
+        // Example apps under `Examples/` — each a single `main.swift` showing one
+        // way to build on OpenNook through public API only. Run with `swift run
+        // HelloNook` (or `ClockNook` / `ThemedNook`).
+        .executable(name: "HelloNook", targets: ["HelloNook"]),
+        .executable(name: "ClockNook", targets: ["ClockNook"]),
+        .executable(name: "ThemedNook", targets: ["ThemedNook"])
     ],
     targets: [
         .target(
@@ -45,6 +51,21 @@ let package = Package(
             name: "NookExecutable",
             dependencies: ["NookApp"],
             path: "Sources/NookExecutable"
+        ),
+        .executableTarget(
+            name: "HelloNook",
+            dependencies: ["NookApp"],
+            path: "Examples/HelloNook"
+        ),
+        .executableTarget(
+            name: "ClockNook",
+            dependencies: ["NookApp"],
+            path: "Examples/ClockNook"
+        ),
+        .executableTarget(
+            name: "ThemedNook",
+            dependencies: ["NookApp"],
+            path: "Examples/ThemedNook"
         ),
         .testTarget(
             name: "NookKitTests",

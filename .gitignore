@@ -10,3 +10,6 @@ xcuserdata/
 # after editing project.yml.
 Nook.xcodeproj/
 .swiftpm/
+
+# Internal planning notes — not part of the published framework.
+.notes/

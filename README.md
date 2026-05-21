@@ -53,8 +53,8 @@ Everything built on top of `NookSurface` to make it feel like an app:
   (clipboard, networking, persistence…) here so view initializers stay put.
 - `App/NookAppearancePreferences.swift` — persisted theme / surface style /
   haptics, with forwards-compatible `Codable` decoding.
-- `App/Views/NookExpandedView.swift` — the top-level expanded surface.
-  **The placeholder home view here is what you replace.**
+- `App/Views/NookExpandedView.swift` — the framework chrome shell (top bar +
+  Settings) that hosts the home view **you register** via `NookConfiguration`.
 - `App/Views/NookTopBar.swift` — home glyph + lock (keep-open) + gear.
 - `App/Views/Compact/CompactViews.swift` — the left/right slots flanking the
   physical notch when collapsed.
@@ -105,21 +105,55 @@ the source of truth. Regenerate it after a fresh clone or after editing
 `project.yml`. Both build paths compile the same SwiftPM modules, so behavior
 cannot drift between them.
 
+## Example apps
+
+Three single-file examples under `Examples/` show how to build on OpenNook
+through public API only — no forking:
+
+```sh
+swift run HelloNook    # register one view, go
+swift run ClockNook    # custom home view + a custom compact slot
+swift run ThemedNook   # a host-supplied theme + lifecycle hooks
+```
+
 ## Start your own notch app
 
-1. **Fork or clone** this repo (the module names `NookKit` / `NookApp` /
-   `NookSurface` are independent of the repo name — you can keep them).
-2. **Replace the home view.** Open
-   `Sources/NookKit/App/Views/NookExpandedView.swift` and swap the
-   `homeSurface` placeholder for your product surface.
-3. **Add your state** to `AppState` (`Sources/NookKit/App/AppState.swift`) and
-   your dependencies to `AppServices`
-   (`Sources/NookKit/App/AppServices.swift`).
-4. **Drive the chrome** through `AppCoordinator` — `showNook()`, `hideNook()`,
-   `toggleNook()`, `toggleKeepNookOpen()` are the lifecycle vocabulary; the
-   global hotkey and menu-bar fallback already call into them.
-5. **Tune the look** via `NookAppearancePreferences` and the settings panels
-   under `Sources/NookKit/App/Views/Settings/`.
+You depend on OpenNook as a package and customize it through public API — you
+do **not** fork the framework.
+
+**1. Register a view.** Hand `NookApp.main` your expanded home view; the top
+bar, Settings, hotkey, and compact pill all come for free:
+
+```swift
+import NookApp
+import SwiftUI
+
+NookApp.main { MyHomeView() }
+```
+
+**2. Customize via `NookConfiguration`** when you need more than a home view —
+the compact slots, the chrome theme, and lifecycle hooks:
+
+```swift
+var configuration = NookConfiguration()
+configuration.setHome { MyHomeView() }
+configuration.setCompactTrailing { MyGlyph() }
+configuration.theme = { appState in MyPalette.resolve(appState) }
+configuration.onExpand = { print("nook expanded") }
+NookApp.main(configuration)
+```
+
+Your views read the resolved palette from the `\.nookResolvedTheme`
+environment value and shared services from `\.appServices`.
+
+**3. Add your state and services.** `AppState`
+(`Sources/NookKit/App/AppState.swift`) holds chrome state — add product state
+alongside it; `AppServices` (`Sources/NookKit/App/AppServices.swift`) is the
+dependency container threaded into views.
+
+**4. Drive the chrome** through `AppCoordinator` — `showNook()`, `hideNook()`,
+`toggleNook()`, `toggleKeepNookOpen()` are the lifecycle vocabulary; the global
+hotkey and menu-bar fallback already call into them.
 
 Rename the product (`Nook` → your app) by editing `project.yml`,
 `App/Info.plist`, and the `Package.swift` product name when you're ready to

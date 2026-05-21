@@ -5,22 +5,18 @@
 // you may not use this file except in compliance with the License.
 // A copy is included at /LICENSE in the repository root.
 
-import AppKit
 import SwiftUI
 
-/// Compact slot to the **left** of the notch when the nook is collapsed. The shimmer
-/// peripheral cue lives in `NookSurface.NookFeedbackOverlay`; this view just renders the
-/// static icon flanking the cutout.
+/// Default compact slot to the **left** of the notch when the nook is collapsed. The
+/// shimmer peripheral cue lives in `NookSurface.NookFeedbackOverlay`; this view just
+/// renders the static icon flanking the cutout.
+///
+/// This is the default `compactLeading` content installed by `NookConfiguration`. Host
+/// apps register their own via ``NookConfiguration/setCompactLeading(_:)``.
 public struct NookCompactLeadingView: View {
-    @ObservedObject var appState: AppState
+    @Environment(\.nookResolvedTheme) private var theme
 
-    public init(appState: AppState) {
-        self.appState = appState
-    }
-
-    private var theme: NookResolvedTheme {
-        NookResolvedTheme.live(appState: appState)
-    }
+    public init() {}
 
     public var body: some View {
         Image(systemName: "house")
@@ -30,22 +26,33 @@ public struct NookCompactLeadingView: View {
     }
 }
 
-/// Compact slot to the **right** of the notch.
+/// Default compact slot to the **right** of the notch.
 public struct NookCompactTrailingView: View {
-    @ObservedObject var appState: AppState
+    @Environment(\.nookResolvedTheme) private var theme
 
-    public init(appState: AppState) {
-        self.appState = appState
-    }
-
-    private var theme: NookResolvedTheme {
-        NookResolvedTheme.live(appState: appState)
-    }
+    public init() {}
 
     public var body: some View {
         Image(systemName: "sparkles")
             .font(.system(size: 11, weight: .semibold))
             .foregroundStyle(theme.primaryLabel.opacity(0.82))
             .frame(width: NookLayout.compactSlotSize, height: NookLayout.compactSlotSize)
+    }
+}
+
+/// Wraps host-registered compact content so it gets the same `\.nookResolvedTheme`
+/// environment value the expanded surface injects.
+///
+/// `NookSurface` renders the compact slots directly, with no environment of its own, so
+/// the coordinator wraps each registered compact closure in one of these. Observing
+/// `AppState` keeps the resolved theme current when appearance preferences change.
+struct NookCompactHost<Content: View>: View {
+    @ObservedObject var appState: AppState
+    let theme: (AppState) -> NookResolvedTheme
+    let content: () -> Content
+
+    var body: some View {
+        content()
+            .environment(\.nookResolvedTheme, theme(appState))
     }
 }
