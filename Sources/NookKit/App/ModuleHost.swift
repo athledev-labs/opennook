@@ -29,7 +29,7 @@ public final class ModuleHost: ObservableObject {
 
     /// The active module's surface configuration — home/compact content, theme, chrome
     /// opt-outs, lifecycle hooks. Re-publishing this is what a module switch *is*; the
-    /// router views observe it. (`switch(to:)` arrives in Phase 2.)
+    /// router views observe it.
     @Published public private(set) var configuration: NookConfiguration
 
     public init(registry: NookModuleRegistry) {
@@ -60,6 +60,13 @@ public final class ModuleHost: ObservableObject {
 
     /// The active module's isolated context.
     public var activeContext: NookModuleContext? { registry.context(for: activeModuleID) }
+
+    /// Used only if a context somehow can't be resolved — the active module is always
+    /// registered, so in practice ``activeServices`` returns the module's own bag.
+    private let fallbackServices = AppServices()
+
+    /// The active module's service bag — what the surface binds to `\.appServices`.
+    public var activeServices: AppServices { activeContext?.services ?? fallbackServices }
 
     /// `true` when more than one module is registered — i.e. a switcher is meaningful.
     public var isMultiModule: Bool { registry.descriptors.count > 1 }

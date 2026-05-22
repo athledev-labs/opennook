@@ -16,7 +16,6 @@ struct ModuleRouterExpandedView: View {
     @ObservedObject var moduleHost: ModuleHost
     @ObservedObject var appState: AppState
 
-    let services: AppServices
     let toggleKeepOpen: () -> Void
     let hide: () -> Void
     let resetAllSettings: () -> Void
@@ -25,7 +24,7 @@ struct ModuleRouterExpandedView: View {
         let configuration = moduleHost.configuration
         NookExpandedView(
             appState: appState,
-            services: services,
+            services: moduleHost.activeServices,
             toggleKeepOpen: toggleKeepOpen,
             hide: hide,
             resetAllSettings: resetAllSettings,

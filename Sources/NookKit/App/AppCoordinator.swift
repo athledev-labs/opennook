@@ -16,7 +16,6 @@ import SwiftUI
 @MainActor
 public final class AppCoordinator: ObservableObject {
     public let appState: AppState
-    public let services: AppServices
 
     /// The indirection layer to the active host configuration. The surface's content
     /// observes this, so a module switch is a re-publish here rather than a rebuild.
@@ -79,7 +78,6 @@ public final class AppCoordinator: ObservableObject {
                 AnyView(ModuleRouterExpandedView(
                     moduleHost: self.moduleHost,
                     appState: self.appState,
-                    services: self.services,
                     toggleKeepOpen: { [weak self] in self?.toggleKeepNookOpen() },
                     hide: { [weak self] in self?.hideNook() },
                     resetAllSettings: { [weak self] in self?.resetAllSettingsToDefaults() }
@@ -112,13 +110,11 @@ public final class AppCoordinator: ObservableObject {
 
     public convenience init(
         appState: AppState = AppState(),
-        services: AppServices = AppServices(),
         hotkeyController: HotkeyController = HotkeyController(),
         configuration: NookConfiguration = NookConfiguration()
     ) {
         self.init(
             appState: appState,
-            services: services,
             hotkeyController: hotkeyController,
             moduleHost: ModuleHost(configuration: configuration)
         )
@@ -126,12 +122,10 @@ public final class AppCoordinator: ObservableObject {
 
     public init(
         appState: AppState = AppState(),
-        services: AppServices = AppServices(),
         hotkeyController: HotkeyController = HotkeyController(),
         moduleHost: ModuleHost
     ) {
         self.appState = appState
-        self.services = services
         self.hotkeyController = hotkeyController
         self.moduleHost = moduleHost
 
