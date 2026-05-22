@@ -19,15 +19,32 @@ public struct NookTransitionConfiguration: Sendable {
     /// When `true`, compact↔expanded skips the intermediate hide-and-show.
     public var skipIntermediateHides: Bool
 
+    /// Longest duration, in seconds, of any animation supplied above.
+    ///
+    /// SwiftUI's `Animation` exposes no portable duration accessor on macOS 13, and
+    /// `withAnimation` has no completion callback there either — so the surface cannot
+    /// introspect a custom animation to know when it has visibly finished. An awaited
+    /// `expand()`/`compact()` documents that it "returns once the chrome has visibly
+    /// arrived"; to honor that contract for a *non-default* (typically slower) animation,
+    /// a host that overrides the curves should set this to the longest of their
+    /// durations. The surface sizes its post-animation settle delay from this value.
+    ///
+    /// `nil` (the default) means "the animations use the built-in ~0.4 s curves," and
+    /// the surface falls back to its default settle constants. Set this only when you
+    /// pass a custom animation whose duration differs materially from the default.
+    public var animationDuration: TimeInterval?
+
     public init(
         openingAnimation: Animation? = nil,
         closingAnimation: Animation? = nil,
         conversionAnimation: Animation? = nil,
-        skipIntermediateHides: Bool = false
+        skipIntermediateHides: Bool = false,
+        animationDuration: TimeInterval? = nil
     ) {
         self.openingAnimation = openingAnimation
         self.closingAnimation = closingAnimation
         self.conversionAnimation = conversionAnimation
         self.skipIntermediateHides = skipIntermediateHides
+        self.animationDuration = animationDuration
     }
 }

@@ -67,8 +67,7 @@ where Expanded: View, CompactLeading: View, CompactTrailing: View {
     public var presentation: NookPresentation = .auto {
         didSet {
             guard presentation != oldValue, state != .hidden, let screen = resolvedScreen else { return }
-            initializeWindow(screen: screen, orderFront: false)
-            showWindow()
+            rebuildVisibleWindow(on: screen)
         }
     }
 
@@ -96,6 +95,10 @@ where Expanded: View, CompactLeading: View, CompactTrailing: View {
     /// `true` while a system file-drag session is over the panel. Drives the drop-mode UI
     /// in the expanded surface and the auto-expand from compact. The panel surfaces
     /// `NSDraggingDestination` callbacks; this published bool is the SwiftUI-friendly view.
+    ///
+    /// This is a derived mirror of ``dragSession`` — kept as the published surface for
+    /// observers (`AppCoordinator` subscribes to `$isDragInFlight`). The authoritative
+    /// session state is ``dragSession``; this bool is updated from its `didSet`.
     @Published public private(set) var isDragInFlight: Bool = false
 
     /// Drop callback invoked when AppKit hands us a file URL drop on the panel. Returning
@@ -114,10 +117,18 @@ where Expanded: View, CompactLeading: View, CompactTrailing: View {
     /// sequence collapses to compact, so `onHide` only fires on a genuine hide afterwards.
     public var onHide: (() -> Void)?
 
-    /// Snapshot of `state` at the moment the drag entered. Lets `draggingExited` restore
-    /// the prior compact/expanded shape if the user releases outside the panel — we don't
-    /// want to silently leave the nook expanded after an aborted drag.
-    private var stateBeforeDrag: NookState?
+    /// Authoritative state of the in-flight file-drag session. The whole session — the
+    /// pre-drag `NookState` snapshot and whether a drag is over the panel at all — lives
+    /// in this single enum so AppKit's uncoordinated enter/update/exit/end/drop callbacks
+    /// cannot corrupt it (see ``DragSession``). ``isDragInFlight`` is kept in sync from
+    /// the `didSet` so existing observers of that published bool are unaffected.
+    var dragSession: DragSession = .idle {
+        didSet {
+            let inFlight: Bool
+            if case .idle = dragSession { inFlight = false } else { inFlight = true }
+            if isDragInFlight != inFlight { isDragInFlight = inFlight }
+        }
+    }
 
     /// Backdrop layers behind compact + expanded chrome (vibrancy or flat fill).
     @Published public var backdropConfiguration = NookBackdropConfiguration.solidBlack
@@ -129,7 +140,12 @@ where Expanded: View, CompactLeading: View, CompactTrailing: View {
     /// appearance, so without pinning it here a "Light" theme on a dark-mode Mac would
     /// still paint a dark frosted panel.
     public var chromeAppearance: NSAppearance? {
-        didSet { windowController?.window?.appearance = chromeAppearance }
+        didSet {
+            // Pinning the appearance only pokes the live window — no rebuild — so unlike
+            // `presentation` this needs no generation bump; an in-flight transition is
+            // unaffected by an `NSAppearance` swap on the same window.
+            windowController?.window?.appearance = chromeAppearance
+        }
     }
 
     /// Most recent peripheral-feedback request. The view layer (`NookFeedbackOverlay`) watches
@@ -142,11 +158,11 @@ where Expanded: View, CompactLeading: View, CompactTrailing: View {
     /// `.expanded` transition because the user has by then acknowledged the surface directly.
     private var pendingFeedback: NookFeedbackEvent?
 
-    private var closePanelTask: Task<(), Never>?
-
-    /// The in-flight expand/compact transition, or `nil` when idle. ``runTransition(_:)``
-    /// cancels this before spawning a replacement, so a superseded transition's
-    /// `Task.sleep` throws promptly instead of running to term.
+    /// The in-flight transition — expand, compact, *or hide* — or `nil` when idle.
+    /// ``runTransition(_:)`` cancels this before spawning a replacement, so a superseded
+    /// transition's `Task.sleep` throws promptly instead of running to term. The hide
+    /// teardown now runs as one of these tracked tasks (it used to live in a separate,
+    /// untracked `closePanelTask` outside the generation system — see ``_hide(generation:)``).
     private var transitionTask: Task<Void, Never>?
 
     /// Monotonic transition token. ``runTransition(_:)`` bumps it **synchronously** at
@@ -259,12 +275,15 @@ where Expanded: View, CompactLeading: View, CompactTrailing: View {
             .sink { [weak self] _ in
                 guard let self else { return }
                 guard self.state != .hidden else {
+                    // No window worth keeping while hidden. Supersede any in-flight
+                    // transition first so a mid-flight `_expand`/`_compact`/`_hide`
+                    // can't keep operating on the window we're about to tear down.
+                    self.supersedeInFlightTransition()
                     self.deinitializeWindow()
                     return
                 }
                 guard let screen = self.resolvedScreen else { return }
-                self.initializeWindow(screen: screen, orderFront: false)
-                self.showWindow()
+                self.rebuildVisibleWindow(on: screen)
             }
             .store(in: &cancellables)
     }
@@ -296,15 +315,21 @@ where Expanded: View, CompactLeading: View, CompactTrailing: View {
     }
 
     /// Claims the next transition generation **synchronously**, cancels any in-flight
-    /// transition (and pending close), and runs `body` as the sole tracked transition
-    /// task. `body` receives its generation and must re-check ``isCurrent(_:)`` at its
-    /// top and after every suspension. The returned task completes when `body` does, so
-    /// an `await`ing caller (e.g. `expand()`) sees the transition through to settle.
+    /// transition, and runs `body` as the sole tracked transition task. `body` receives
+    /// its generation and must re-check ``isCurrent(_:)`` at its top and after every
+    /// suspension. The returned task completes when `body` does, so an `await`ing caller
+    /// (e.g. `expand()`) sees the transition through to settle.
+    ///
+    /// Every transition — expand, compact, **and hide** — flows through here, so a new
+    /// transition reliably supersedes whatever was in flight: the generation bump fails
+    /// the predecessor's next `isCurrent` check, and the `cancel()` stops it sleeping.
+    /// In particular a hover- or drag-driven `expand` cancels an in-flight hide's
+    /// teardown before it can deinit the window out from under the freshly-expanded
+    /// surface.
     @discardableResult
     func runTransition(_ body: @escaping @MainActor (_ generation: Int) async -> Void) -> Task<Void, Never> {
         transitionGeneration &+= 1
         let generation = transitionGeneration
-        closePanelTask?.cancel()
         transitionTask?.cancel()
         let task = Task { @MainActor [weak self] in
             await body(generation)
@@ -318,6 +343,30 @@ where Expanded: View, CompactLeading: View, CompactTrailing: View {
     /// `true` while `generation` is still the most recent transition — i.e. no newer
     /// `expand`/`compact`/`hide` has been claimed since.
     func isCurrent(_ generation: Int) -> Bool { transitionGeneration == generation }
+
+    /// Claim a fresh transition generation **synchronously** and cancel any in-flight
+    /// transition, without spawning a replacement.
+    ///
+    /// Used by the synchronous window-swap paths (`presentation.didSet`, the
+    /// screen-parameter observer) which rebuild or drop the window outside of
+    /// `runTransition`. Bumping the generation here is the supersession signal: a
+    /// mid-flight `_expand`/`_compact`/`_hide` re-checks `isCurrent` after each
+    /// suspension and bails the instant the window is rebuilt under it, rather than
+    /// animating (or deinit'ing) a window that has already been swapped.
+    func supersedeInFlightTransition() {
+        transitionGeneration &+= 1
+        transitionTask?.cancel()
+        transitionTask = nil
+    }
+
+    /// Rebuild a currently-visible window in place (new screen, new presentation) so the
+    /// new layout takes effect immediately. Supersedes any in-flight transition first so
+    /// it can't keep mutating the window being swapped — see ``supersedeInFlightTransition()``.
+    func rebuildVisibleWindow(on screen: NSScreen) {
+        supersedeInFlightTransition()
+        initializeWindow(screen: screen, orderFront: false)
+        showWindow()
+    }
 }
 
 // MARK: - Public lifecycle
@@ -343,12 +392,14 @@ public extension Nook {
         }.value
     }
 
+    /// Hide the chrome and tear the window down. Routed through ``runTransition(_:)`` —
+    /// exactly like `expand`/`compact` — so the hide and its teardown live fully inside
+    /// the generation system: a newer transition reliably supersedes an in-flight hide,
+    /// cancelling its task before its `fadeOutWindow`/`deinitializeWindow` can run.
     func hide() async {
-        await withCheckedContinuation { continuation in
-            _hide {
-                continuation.resume()
-            }
-        }
+        await runTransition { [weak self] generation in
+            await self?._hide(generation: generation)
+        }.value
     }
 }
 
@@ -420,24 +471,22 @@ extension Nook {
         if feedbackEvent?.repeats == true { feedbackEvent = nil }
         if pendingFeedback?.repeats == true { pendingFeedback = nil }
 
-        closePanelTask?.cancel()
-
         let needsNewWindow = state == .hidden || windowController?.window?.screen != screen
 
         if needsNewWindow {
             initializeWindow(screen: screen, orderFront: false)
             withAnimation(effectiveOpeningAnimation) { state = .expanded }
             showWindow()
-            try? await Task.sleep(for: Self.openSettleDuration)
+            try? await Task.sleep(for: openSettleDuration)
         } else {
             if !skipHide {
                 withAnimation(effectiveClosingAnimation) { state = .hidden }
-                try? await Task.sleep(for: Self.intermediateHideDuration)
+                try? await Task.sleep(for: intermediateHideDuration)
                 // A newer transition may have superseded us across the sleep.
                 guard isCurrent(generation), state == .hidden else { return }
             }
             withAnimation(effectiveConversionAnimation) { state = .expanded }
-            try? await Task.sleep(for: Self.conversionSettleDuration)
+            try? await Task.sleep(for: conversionSettleDuration)
         }
     }
 
@@ -448,8 +497,11 @@ extension Nook {
         guard isCurrent(generation) else { return }
 
         if disableCompactLeading, disableCompactTrailing {
-            // No compact content to show — "compact" collapses to a full hide.
-            await hide()
+            // No compact content to show — "compact" collapses to a full hide. Run the
+            // hide *inline on this same generation* rather than calling the public
+            // `hide()`: the latter claims a fresh generation via `runTransition` and
+            // would supersede the very transition we're inside, dropping our teardown.
+            await _hide(generation: generation)
             return
         }
 
@@ -457,60 +509,59 @@ extension Nook {
         // screen still needs the window moved, so fall through to the rebuild path.
         if state == .compact, windowController?.window?.screen == screen { return }
 
-        closePanelTask?.cancel()
-
         let needsNewWindow = state == .hidden || windowController?.window?.screen != screen
 
         if needsNewWindow {
             initializeWindow(screen: screen, orderFront: false)
             withAnimation(effectiveOpeningAnimation) { state = .compact }
             showWindow()
-            try? await Task.sleep(for: Self.openSettleDuration)
+            try? await Task.sleep(for: openSettleDuration)
         } else {
             if !skipHide {
                 withAnimation(effectiveClosingAnimation) { state = .hidden }
-                try? await Task.sleep(for: Self.intermediateHideDuration)
+                try? await Task.sleep(for: intermediateHideDuration)
                 guard isCurrent(generation), state == .hidden else { return }
             }
             withAnimation(effectiveConversionAnimation) { state = .compact }
-            try? await Task.sleep(for: Self.conversionSettleDuration)
+            try? await Task.sleep(for: conversionSettleDuration)
         }
     }
 
-    /// `keepVisible` defers the actual hide until the cursor leaves; otherwise we fade and tear down.
-    func _hide(completion: (() -> Void)? = nil) {
-        guard state != .hidden else {
-            completion?()
-            return
-        }
-
-        // Supersede any in-flight expand/compact: bump the generation so its next
-        // `isCurrent` check fails, and cancel its task so it stops sleeping.
-        transitionGeneration &+= 1
-        transitionTask?.cancel()
-        transitionTask = nil
+    /// Hide the chrome and tear the window down. Runs as a tracked transition under
+    /// ``runTransition(_:)`` — `generation` is the token it claimed synchronously.
+    ///
+    /// Because the hide now lives fully inside the generation system, every step
+    /// re-checks ``isCurrent(_:)`` after each suspension point: a newer transition
+    /// (a hover-grow, a drag auto-expand, a host `expand`) bumps the generation and
+    /// cancels this task via `runTransition`, so the teardown — `keepVisible` poll,
+    /// intermediate-hide dwell, `fadeOutWindow`, `deinitializeWindow` — bails before it
+    /// can deinit a window the newer transition has already claimed. Previously this
+    /// teardown ran in an untracked `closePanelTask` outside the generation system, so a
+    /// hover-grow racing it could have the window deinit'd out from under a
+    /// freshly-expanded surface.
+    ///
+    /// `.keepVisible` still defers the hide until the cursor leaves the panel, but the
+    /// poll is now part of this awaited transition rather than a recursively-spawned
+    /// untracked task — an awaited `hide()` always resolves: cursor leaves, supersession,
+    /// task cancellation, or already-hidden.
+    func _hide(generation: Int) async {
+        // Superseded before this task even started running.
+        guard isCurrent(generation) else { return }
+        guard state != .hidden else { return }
 
         // `.keepVisible` defers an explicit hide until the cursor leaves the panel — we
-        // don't yank the surface out from under an active hover. Poll on the *single*
-        // tracked `closePanelTask` rather than recursively spawning fresh untracked
-        // tasks, and invoke `completion` on every exit path (cursor leaves, task
-        // cancelled by an incoming expand/compact, or `Nook` deallocated). A prior
-        // implementation recursed with new tasks and, while the cursor stayed put, left
-        // an awaited `hide()` continuation suspended indefinitely.
+        // don't yank the surface out from under an active hover. Poll inline; bail if a
+        // newer transition supersedes us, or if hover behavior stops requesting deferral.
         if hoverBehavior.contains(.keepVisible), isHovering {
-            closePanelTask?.cancel()
-            closePanelTask = Task { [weak self] in
-                while let self, self.isHovering,
-                      self.hoverBehavior.contains(.keepVisible), !Task.isCancelled {
-                    try? await Task.sleep(for: Self.keepVisiblePollInterval)
-                }
-                guard let self, !Task.isCancelled else {
-                    completion?()
-                    return
-                }
-                self._hide(completion: completion)
+            while isCurrent(generation), isHovering,
+                  hoverBehavior.contains(.keepVisible), !Task.isCancelled {
+                try? await Task.sleep(for: Self.keepVisiblePollInterval)
             }
-            return
+            // Superseded (or cancelled) while waiting for the cursor to leave: a newer
+            // transition owns the surface now — do not tear its window down.
+            guard isCurrent(generation), !Task.isCancelled else { return }
+            // A superseded-then-restored race could have left us already hidden.
+            guard state != .hidden else { return }
         }
 
         withAnimation(effectiveClosingAnimation) {
@@ -518,21 +569,15 @@ extension Nook {
             isHovering = false
         }
 
-        closePanelTask?.cancel()
-        closePanelTask = Task { [weak self] in
-            try? await Task.sleep(for: Self.intermediateHideDuration)
-            // A cancelled hide — an incoming expand/compact took over — must skip the
-            // teardown, but must still resume the awaiting `hide()` continuation: a
-            // dropped `completion` would wedge that caller (and any serial queue
-            // awaiting it) forever.
-            if !Task.isCancelled {
-                await self?.fadeOutWindow()
-            }
-            if !Task.isCancelled {
-                self?.deinitializeWindow()
-            }
-            completion?()
-        }
+        try? await Task.sleep(for: intermediateHideDuration)
+        // A newer transition took over across the close-animation dwell — it owns the
+        // window now, so skip the teardown entirely.
+        guard isCurrent(generation), !Task.isCancelled else { return }
+
+        await fadeOutWindow()
+        guard isCurrent(generation), !Task.isCancelled else { return }
+
+        deinitializeWindow()
     }
 
     /// Mask any closing-frame artifacts behind a brief layer-opacity fade before tearing the window down.
@@ -565,22 +610,51 @@ extension Nook {
     /// Duration of the hosting-layer fade used during show/teardown.
     static var fadeDuration: CFTimeInterval { 0.15 }
 
+    /// Nominal duration of the built-in open/close/conversion animations (see
+    /// ``NookStyle``). The default settle allowances below are sized to this; a host
+    /// overriding the curves declares its own duration via
+    /// ``NookTransitionConfiguration/animationDuration``.
+    static var defaultAnimationDuration: TimeInterval { 0.4 }
+
+    /// The animation duration the settle allowances should be sized to: the host's
+    /// declared ``NookTransitionConfiguration/animationDuration`` when set, otherwise
+    /// the built-in default. This is what makes an awaited `expand()`/`compact()` honor
+    /// its "returns once the chrome has visibly arrived" contract for *any* configured
+    /// animation, not just the default-speed one.
+    var settleAnimationDuration: TimeInterval {
+        max(transitionConfiguration.animationDuration ?? Self.defaultAnimationDuration, 0)
+    }
+
     /// Settle allowance after a fresh open animation (`.hidden` → visible) before an
     /// awaited `expand()`/`compact()` returns.
     ///
-    /// SwiftUI's `withAnimation` exposes no portable completion callback on macOS 13,
-    /// so these settle durations are fixed allowances sized to the default
-    /// open/conversion animations. A host supplying a substantially slower custom
-    /// animation via ``transitionConfiguration`` may see an awaited transition return
-    /// while its animation is still finishing.
-    static var openSettleDuration: Duration { .milliseconds(550) }
+    /// SwiftUI's `withAnimation` exposes no portable completion callback on macOS 13, so
+    /// the surface cannot observe when an animation has actually finished. Instead the
+    /// settle delay is derived from the *configured* animation duration
+    /// (``settleAnimationDuration``) plus a fixed cushion for the window-show fade — so
+    /// the await contract holds whether the host keeps the default curves or supplies a
+    /// slower custom animation. Sized to match the previous 550 ms constant at the
+    /// default 0.4 s duration.
+    var openSettleDuration: Duration {
+        .seconds(settleAnimationDuration + Self.fadeDuration)
+    }
 
-    /// Settle allowance after a compact ⇄ expanded conversion animation.
-    static var conversionSettleDuration: Duration { .milliseconds(300) }
+    /// Settle allowance after a compact ⇄ expanded conversion animation. Like
+    /// ``openSettleDuration`` but without the window-show cushion (the window is already
+    /// visible). Equal to the configured animation duration; matches the previous
+    /// 300 ms constant once that constant's ~100 ms slack over a 0.4 s spring is folded
+    /// into "let the spring settle."
+    var conversionSettleDuration: Duration {
+        .seconds(settleAnimationDuration)
+    }
 
     /// Dwell at `.hidden` between a close animation and the following conversion (or
-    /// teardown), when intermediate hides are not skipped.
-    static var intermediateHideDuration: Duration { .milliseconds(250) }
+    /// teardown), when intermediate hides are not skipped. A partial dwell of the
+    /// closing animation — the chrome need not be fully gone before the next phase
+    /// starts. Sized to match the previous 250 ms constant at the default 0.4 s duration.
+    var intermediateHideDuration: Duration {
+        .seconds(settleAnimationDuration * 0.625)
+    }
 
     /// Poll cadence for a `.keepVisible` hide deferred until the cursor leaves.
     static var keepVisiblePollInterval: Duration { .milliseconds(100) }
@@ -687,19 +761,47 @@ private extension Nook {
     }
 }
 
+// MARK: - Drag session state machine
+
+extension Nook {
+    /// Single explicit owner of a file-drag session's mutable state.
+    ///
+    /// AppKit delivers drag-session callbacks (`draggingEntered`/`Updated`/`Exited`/
+    /// `Ended`, `performDragOperation`) on the main thread but with no ordering
+    /// guarantee a state machine can lean on: `draggingExited` can arrive *before*
+    /// `draggingEnded` for one session, a slow or rejected `onFileDrop` can let a fresh
+    /// `draggingEntered` interleave, and `draggingUpdated` fires repeatedly. Rather than
+    /// scatter `stateBeforeDrag`/`isDragInFlight` mutations across those entry points —
+    /// correct only by luck of ordering — the whole session lives in this one enum with
+    /// idempotent transitions.
+    enum DragSession: Equatable {
+        /// No drag over the panel.
+        case idle
+        /// A drag is over the panel. `stateBeforeEntry` is the `NookState` captured at
+        /// the *first* enter of this session, so a later exit/rejected-drop can restore it.
+        case active(stateBeforeEntry: NookState)
+    }
+}
+
 // MARK: - NookDragDestination
 
 extension Nook: NookDragDestination {
-    /// Called when AppKit reports a file drag is over the panel. Snapshot the prior state
-    /// (so we can restore on cancel), flip `isDragInFlight` for the SwiftUI surface, and
-    /// auto-expand if we were collapsed so the drop zone is visible.
+    /// Called when AppKit reports a file drag is over the panel. The *first* enter of a
+    /// session snapshots the prior state and auto-expands a collapsed panel so the drop
+    /// zone is visible; subsequent enters (every `draggingUpdated` forwards here) are
+    /// idempotent no-ops that preserve the original snapshot.
     func nookPanelDraggingEntered(_ urls: [URL]) -> NSDragOperation {
-        if !isDragInFlight {
-            stateBeforeDrag = state
+        guard case .idle = dragSession else {
+            // Already active — a forwarded `draggingUpdated`, or a duplicate enter.
+            // Keep the original snapshot; the advertised operation is unchanged.
+            return .copy
         }
-        isDragInFlight = true
 
-        if state == .compact || state == .hidden {
+        // First enter of this session: snapshot now, before the auto-expand mutates state.
+        let stateBeforeEntry = state
+        dragSession = .active(stateBeforeEntry: stateBeforeEntry)
+
+        if stateBeforeEntry == .compact || stateBeforeEntry == .hidden {
             if let screen = windowController?.window?.screen ?? resolvedScreen {
                 runTransition { [weak self] generation in
                     await self?._expand(on: screen, skipHide: true, generation: generation)
@@ -709,28 +811,33 @@ extension Nook: NookDragDestination {
         return .copy
     }
 
-    /// Drag left without dropping. Restore the prior state — typically collapse back to
-    /// compact since most drags-near-the-notch don't end in a drop.
+    /// Drag left without dropping. Restores the pre-drag state. Idempotent: a duplicate
+    /// or out-of-order `draggingExited`/`draggingEnded` after the session already ended
+    /// is a no-op, because the snapshot was consumed by the first end.
     func nookPanelDraggingExited() {
-        guard isDragInFlight else { return }
-        isDragInFlight = false
-
-        let prior = stateBeforeDrag
-        stateBeforeDrag = nil
-        if let prior { restoreStateAfterDrag(prior) }
+        endDragSession(restorePriorState: true)
     }
 
     /// File drop landed. Hand the URLs to the registered callback; if it accepts, leave
-    /// the nook expanded so the registration UI is visible, otherwise restore prior state.
+    /// the nook expanded so the registration UI is visible, otherwise restore prior
+    /// state. The session is ended *before* restoring, so a `draggingExited`/`Ended`
+    /// that AppKit delivers around the drop can't double-restore.
     func nookPanelPerformDrop(_ urls: [URL]) -> Bool {
         let accepted = onFileDrop?(urls) ?? false
-
-        isDragInFlight = false
-        let prior = stateBeforeDrag
-        stateBeforeDrag = nil
-
-        if !accepted, let prior { restoreStateAfterDrag(prior) }
+        endDragSession(restorePriorState: !accepted)
         return accepted
+    }
+
+    /// End the current drag session exactly once. Reads the snapshot out of the session
+    /// state, flips it to `.idle`, and — if asked — restores the captured prior state.
+    /// Calling this when already `.idle` is a no-op, which is what makes the destination
+    /// robust against AppKit's duplicate and out-of-order exit/end/drop callbacks.
+    private func endDragSession(restorePriorState: Bool) {
+        guard case let .active(stateBeforeEntry) = dragSession else { return }
+        dragSession = .idle
+        if restorePriorState {
+            restoreStateAfterDrag(stateBeforeEntry)
+        }
     }
 
     /// Restore the surface to its pre-drag state after an aborted drag or a rejected
@@ -743,7 +850,9 @@ extension Nook: NookDragDestination {
                 await self?._compact(on: screen, skipHide: true, generation: generation)
             }
         case .hidden:
-            _hide()
+            runTransition { [weak self] generation in
+                await self?._hide(generation: generation)
+            }
         case .expanded:
             break
         }
