@@ -17,6 +17,11 @@ private final class FakePresenter: NookSurfacePresenting {
 
     private(set) var beginCount = 0
     private(set) var endCount = 0
+    private var nextToken = 0
+
+    /// When > 0, the next N `beginTransientPresentation(_:)` calls reject the takeover —
+    /// simulating the user grabbing the surface in the pre-takeover race window.
+    var rejectNextBegins = 0
 
     var isUserEngaged: Bool { engagement.value }
 
@@ -24,8 +29,20 @@ private final class FakePresenter: NookSurfacePresenting {
         engagement.eraseToAnyPublisher()
     }
 
-    func beginTransientPresentation() async { beginCount += 1 }
-    func endTransientPresentation() async { endCount += 1 }
+    var activeModuleID = "test.module"
+
+    func beginTransientPresentation(_ claim: NookSurfaceClaim) async -> NookSurfaceToken? {
+        beginCount += 1
+        if rejectNextBegins > 0 {
+            rejectNextBegins -= 1
+            return nil
+        }
+        guard !isUserEngaged else { return nil }
+        defer { nextToken += 1 }
+        return NookSurfaceToken(value: nextToken)
+    }
+
+    func endTransientPresentation(_ token: NookSurfaceToken) async { endCount += 1 }
 
     func setEngaged(_ value: Bool) { engagement.send(value) }
 }
@@ -129,6 +146,26 @@ final class NookActivityQueueTests: XCTestCase {
         presenter.setEngaged(false)
         await queue.drainTask?.value
         XCTAssertEqual(presenter.beginCount, 1, "queue recovers and drains after suspend-while-engaged")
+        XCTAssertTrue(queue.pending.isEmpty)
+        XCTAssertNil(queue.current)
+    }
+
+    /// Regression: if the user grabs the surface in the window between the engagement
+    /// wait and the takeover, `beginTransientPresentation()` returns `false`. The queue
+    /// must re-queue the activity and retry, not drop it or render a card over a
+    /// surface it never took.
+    @MainActor
+    func testRequeuesActivityWhenTakeoverRejected() async {
+        let queue = instantQueue()
+        let presenter = FakePresenter()
+        presenter.rejectNextBegins = 1
+        queue.bind(to: presenter)
+
+        queue.enqueue(NookActivity(title: "A"))
+        await queue.drainTask?.value
+
+        XCTAssertEqual(presenter.beginCount, 2, "first takeover rejected, retried once")
+        XCTAssertEqual(presenter.endCount, 1, "presented exactly once, after the retry")
         XCTAssertTrue(queue.pending.isEmpty)
         XCTAssertNil(queue.current)
     }

@@ -8,14 +8,46 @@
 import Foundation
 import SwiftUI
 
-/// Dependency container threaded into views via the SwiftUI environment.
-/// Empty by default — downstream forks add services here (clipboard, link-metadata,
-/// transcription, whatever) so each view's init signature stays put.
+/// A per-module dependency container, threaded into a module's views via the SwiftUI
+/// environment (`\.appServices`).
 ///
-/// Not `@MainActor` so SwiftUI's `EnvironmentKey.defaultValue = AppServices()` initializer
-/// stays callable from any context.
+/// Each ``NookModule`` gets its own `AppServices` through its ``NookModuleContext``, so
+/// two modules in the same host process never share or collide on services. A module
+/// registers what it needs by type and its views resolve it back the same way:
+///
+/// ```swift
+/// context.services.register(ClipboardService())
+/// // ...in a view:
+/// @Environment(\.appServices) private var services
+/// let clipboard = services.resolve(ClipboardService.self)
+/// ```
+///
+/// Expected to be used from the main actor: registration happens when a module is
+/// constructed, resolution happens during view rendering. It is intentionally not
+/// `@MainActor` so SwiftUI's `EnvironmentKey.defaultValue` initializer stays callable
+/// from any context.
 public final class AppServices {
+    private var storage: [ObjectIdentifier: Any] = [:]
+
     public init() {}
+
+    /// Registers `service`, keyed by its own type. A later registration of the same
+    /// type replaces the earlier one.
+    public func register<Service>(_ service: Service) {
+        storage[ObjectIdentifier(Service.self)] = service
+    }
+
+    /// Returns the registered service of the requested type, or `nil` if none was
+    /// registered.
+    public func resolve<Service>(_ type: Service.Type) -> Service? {
+        storage[ObjectIdentifier(type)] as? Service
+    }
+
+    /// Subscript form of ``register(_:)`` / ``resolve(_:)``.
+    public subscript<Service>(_ type: Service.Type) -> Service? {
+        get { storage[ObjectIdentifier(type)] as? Service }
+        set { storage[ObjectIdentifier(type)] = newValue }
+    }
 }
 
 private struct AppServicesEnvironmentKey: EnvironmentKey {

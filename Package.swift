@@ -96,6 +96,11 @@ let package = Package(
             dependencies: ["NookApp", "NookComponents"],
             path: "Examples/VolumeNook"
         ),
+        .executableTarget(
+            name: "MultiNook",
+            dependencies: ["NookApp"],
+            path: "Examples/MultiNook"
+        ),
         .testTarget(
             name: "NookKitTests",
             dependencies: ["NookKit", "NookSurface"],
