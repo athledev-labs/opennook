@@ -48,6 +48,11 @@ public final class NookActivityQueue: ObservableObject {
     /// The running drain loop, or `nil` when idle. Internal so tests can await it.
     var drainTask: Task<Void, Never>?
 
+    /// The surface token for the transient presentation currently in flight, or `nil`.
+    /// Set right after a grant, cleared once `endTransientPresentation` has been called.
+    /// ``quiesce()`` uses this to release a held claim when stopping mid-presentation.
+    private var activeToken: NookSurfaceToken?
+
     /// Injectable sleep — real time in production, instant in tests.
     private let sleep: @Sendable (Duration) async -> Void
 
@@ -106,6 +111,30 @@ public final class NookActivityQueue: ObservableObject {
         startDrainingIfNeeded()
     }
 
+    /// Stops all draining, joins the drain task, and releases any held surface token.
+    ///
+    /// Unlike ``suspend()`` — which detaches the drain task and returns immediately —
+    /// `quiesce()` *awaits* the drain task to fully unwind, then hands back any
+    /// in-flight surface claim. After it returns the queue is provably no longer
+    /// touching the surface, so the owning module is safe to switch away or unload.
+    ///
+    /// Idempotent: a second call (or a call on an already-idle queue) is a no-op.
+    public func quiesce() async {
+        isSuspended = true
+        let task = drainTask
+        drainTask = nil
+        task?.cancel()
+        await task?.value
+        if let token = activeToken {
+            activeToken = nil
+            // Stale-token-safe: after a module switch the arbiter treats this as a
+            // guaranteed no-op, so releasing here can never collapse the incoming
+            // module's surface.
+            await presenter?.endTransientPresentation(token)
+        }
+        current = nil
+    }
+
     // MARK: - Drain loop
 
     private func startDrainingIfNeeded() {
@@ -144,6 +173,7 @@ public final class NookActivityQueue: ObservableObject {
                 }
                 continue
             }
+            activeToken = token
             current = activity
             await sleep(activity.dwell)
             // Keep `current` set across the `endTransientPresentation` await, then clear
@@ -158,6 +188,7 @@ public final class NookActivityQueue: ObservableObject {
             // covers the claim handoff, which is the visible part — but it is not the
             // "card renders through the entire collapse" an earlier comment promised.
             await presenter.endTransientPresentation(token)
+            activeToken = nil
             current = nil
         }
     }

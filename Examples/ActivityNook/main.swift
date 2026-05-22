@@ -10,6 +10,12 @@
 // A NookActivityQueue collects transient activities and presents them one at a time,
 // briefly taking over the expanded surface for each. This demo enqueues a sample
 // activity on a timer so the takeover is visible. Run with `swift run ActivityNook`.
+//
+// It is written as a full `NookModule` class (rather than a `NookConfiguration`
+// closure) so it can implement `prepareForSwitchAway()`: a module that owns a
+// `NookActivityQueue` must `quiesce()` that queue before it is switched away, so an
+// in-flight transient presentation is drained and its surface claim released before
+// the incoming module takes the surface.
 
 import NookApp
 import NookComponents
@@ -36,18 +42,34 @@ struct ActivityNookHome: View {
     }
 }
 
-// `NookApp.main { … }` builds the configuration on the main actor, so the
-// main-actor-isolated NookActivityQueue can be constructed here.
-NookApp.main {
-    let queue = NookActivityQueue()
+/// A module that owns a `NookActivityQueue`. Because the queue is a transient surface
+/// presenter, the module must `quiesce()` it before being switched away — that is the
+/// purpose of `prepareForSwitchAway()`.
+@MainActor
+final class ActivityModule: NookModule {
+    static let moduleDescriptor = NookModuleDescriptor(
+        id: "com.opennook.example.activity",
+        displayName: "Activity",
+        icon: "bell",
+        accent: .orange
+    )
 
-    var configuration = NookConfiguration()
-    configuration.setHome {
-        NookActivityHost(queue: queue) { ActivityNookHome() }
+    let descriptor = ActivityModule.moduleDescriptor
+    private let queue = NookActivityQueue()
+    private var sampleTimer: Timer?
+
+    func makeConfiguration() -> NookConfiguration {
+        var configuration = NookConfiguration()
+        configuration.setHome {
+            NookActivityHost(queue: self.queue) { ActivityNookHome() }
+        }
+        configuration.onReady = { [queue, descriptor] coordinator in
+            queue.bind(to: coordinator, moduleID: descriptor.id)
+        }
+        return configuration
     }
-    configuration.onReady = { coordinator in
-        queue.bind(to: coordinator)
 
+    func onActivate() {
         // Demo only: enqueue a rotating sample activity on a timer so the
         // takeover is visible. A real app enqueues in response to its own events.
         let samples = [
@@ -58,17 +80,30 @@ NookApp.main {
             NookActivity(priority: .low, title: "New message",
                          subtitle: "from the notch", systemImage: "message", tint: .orange),
         ]
-        // Intentionally never invalidated: this is a demo, so the timer's lifetime is
-        // the app's lifetime — it stops only when the process exits. A real app that
-        // creates a repeating timer with a shorter scope must keep a reference and call
-        // `invalidate()`; don't cargo-cult this unowned timer.
-        Timer.scheduledTimer(withTimeInterval: 6, repeats: true) { _ in
+        let timer = Timer.scheduledTimer(withTimeInterval: 6, repeats: true) { [queue] _ in
             // Timer fires on the main run loop; hop to the main actor to enqueue.
             MainActor.assumeIsolated {
                 let index = Int(Date.now.timeIntervalSince1970 / 6) % samples.count
                 queue.enqueue(samples[index])
             }
         }
+        sampleTimer = timer
     }
-    return configuration
+
+    /// Stops surface activity before the switch: joins the queue's drain loop and
+    /// releases any claim it holds, so the incoming module takes a clean surface.
+    func prepareForSwitchAway() async {
+        await queue.quiesce()
+    }
+
+    func onDeactivate() {
+        sampleTimer?.invalidate()
+        sampleTimer = nil
+    }
 }
+
+var host = NookHostConfiguration()
+host.register(ActivityModule.moduleDescriptor) { _ in ActivityModule() }
+host.defaultModule = ActivityModule.moduleDescriptor.id
+
+NookApp.main(host)

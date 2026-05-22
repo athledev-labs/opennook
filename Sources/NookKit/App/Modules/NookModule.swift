@@ -37,11 +37,22 @@ public protocol NookModule: AnyObject {
     /// surface; depending on ``NookModuleDescriptor/backgroundPolicy`` the instance may
     /// be torn down after this returns.
     func onDeactivate()
+
+    /// Called when switching away, BEFORE ``onDeactivate()`` and any
+    /// ``NookModuleDescriptor/backgroundPolicy``-driven teardown. Returns once the
+    /// module has stopped all surface activity — drained any in-flight transient
+    /// presentation and released any surface claim it holds.
+    ///
+    /// This is the async quiesce seam: ``onDeactivate()`` stays synchronous and is for
+    /// cheap, prompt cleanup; anything that must *join* in-flight work belongs here. A
+    /// module that owns a `NookActivityQueue` implements this by awaiting `quiesce()`.
+    func prepareForSwitchAway() async
 }
 
 public extension NookModule {
     func onActivate() {}
     func onDeactivate() {}
+    func prepareForSwitchAway() async {}
 }
 
 /// Adapts a plain ``NookConfiguration`` into a ``NookModule``.

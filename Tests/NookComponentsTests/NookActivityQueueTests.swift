@@ -170,6 +170,62 @@ final class NookActivityQueueTests: XCTestCase {
         XCTAssertNil(queue.current)
     }
 
+    /// `quiesce()` must join the drain task and release any in-flight surface claim, so
+    /// the owning module is safe to switch away once it returns.
+    @MainActor
+    func testQuiesceJoinsDrainAndReleasesToken() async {
+        // A non-instant sleep so an activity is genuinely on screen when quiesce lands.
+        let queue = NookActivityQueue(sleep: { _ in try? await Task.sleep(for: .seconds(10)) })
+        let presenter = FakePresenter()
+        queue.bind(to: presenter)
+
+        queue.enqueue(NookActivity(title: "A"))
+        // Let the drain loop grant a claim and park in the (long) dwell.
+        try? await Task.sleep(for: .milliseconds(50))
+        XCTAssertEqual(presenter.beginCount, 1, "claim granted, activity on screen")
+        XCTAssertEqual(presenter.endCount, 0, "still dwelling — not yet released")
+        XCTAssertNotNil(queue.current)
+
+        await queue.quiesce()
+
+        XCTAssertNil(queue.drainTask, "drain task joined and cleared")
+        XCTAssertEqual(presenter.endCount, 1, "the in-flight claim was released")
+        XCTAssertNil(queue.current, "current cleared")
+        XCTAssertTrue(queue.isSuspended)
+    }
+
+    /// `quiesce()` is idempotent and safe on an idle queue — a second call is a no-op.
+    @MainActor
+    func testQuiesceIsIdempotent() async {
+        let queue = instantQueue()
+        let presenter = FakePresenter()
+        queue.bind(to: presenter)
+
+        queue.enqueue(NookActivity(title: "A"))
+        await queue.drainTask?.value
+
+        await queue.quiesce()
+        let endsAfterFirst = presenter.endCount
+        await queue.quiesce()
+        XCTAssertEqual(presenter.endCount, endsAfterFirst, "second quiesce releases nothing")
+        XCTAssertNil(queue.drainTask)
+    }
+
+    /// `quiesce()` on a queue that never started draining (no in-flight token) is a
+    /// clean no-op that still leaves the queue suspended.
+    @MainActor
+    func testQuiesceWithNothingInFlight() async {
+        let queue = instantQueue()
+        let presenter = FakePresenter()
+        queue.bind(to: presenter)
+
+        await queue.quiesce()
+
+        XCTAssertEqual(presenter.endCount, 0)
+        XCTAssertNil(queue.drainTask)
+        XCTAssertTrue(queue.isSuspended)
+    }
+
     @MainActor
     func testYieldsWhileUserEngaged() async throws {
         let queue = instantQueue()
