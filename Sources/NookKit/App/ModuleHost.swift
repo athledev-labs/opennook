@@ -63,4 +63,33 @@ public final class ModuleHost: ObservableObject {
 
     /// `true` when more than one module is registered — i.e. a switcher is meaningful.
     public var isMultiModule: Bool { registry.descriptors.count > 1 }
+
+    /// Switches the foreground module: deactivates the outgoing module, activates and
+    /// re-configures the incoming one, and unloads the outgoing module when its
+    /// ``NookModuleDescriptor/backgroundPolicy`` is `.unloadOnSwitchAway`.
+    ///
+    /// This is pure module bookkeeping. The surface-side effects of a switch — re-wiring
+    /// the `Nook`'s lifecycle hooks, the once-per-module `onReady`, the synthetic
+    /// `onExpand` — are ``AppCoordinator``'s, driven off the `$configuration` re-publish.
+    ///
+    /// Returns `false` without changing anything when `id` is unregistered or already
+    /// the active module.
+    @discardableResult
+    func switchModule(to id: String) -> Bool {
+        let outgoingID = activeModuleID
+        guard id != outgoingID, registry.descriptor(for: id) != nil else { return false }
+        guard let incoming = registry.module(for: id) else { return false }
+
+        let outgoingDescriptor = registry.descriptor(for: outgoingID)
+        registry.module(for: outgoingID)?.onDeactivate()
+
+        incoming.onActivate()
+        activeModuleID = id
+        configuration = incoming.makeConfiguration()
+
+        if outgoingDescriptor?.backgroundPolicy == .unloadOnSwitchAway {
+            registry.unload(outgoingID)
+        }
+        return true
+    }
 }

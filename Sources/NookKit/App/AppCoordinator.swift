@@ -43,6 +43,11 @@ public final class AppCoordinator: ObservableObject {
     /// duplicate observers, sinks, and `onReady` callbacks.
     private var hasStarted = false
 
+    /// Module ids whose `onReady` has already fired. A module's `onReady` runs once per
+    /// *loaded instance* — when it is unloaded (`unloadOnSwitchAway`) the id is dropped
+    /// so a rebuilt instance gets a fresh `onReady` (e.g. to re-bind an activity queue).
+    private var modulesGivenOnReady: Set<String> = []
+
     /// Tail of the serial chain that all surface lifecycle transitions
     /// (expand/compact/hide) run through. Without this, two rapid triggers — a
     /// double hotkey press, a display change landing mid-show — each spawn an
@@ -153,6 +158,7 @@ public final class AppCoordinator: ObservableObject {
         bindHotkeyRegistration()
         bindNookDragSession()
         bindSurfaceVisibility()
+        bindModuleHost()
 
         // Cold-launch greeting: compact the chrome, then fire a one-shot shimmer along the
         // perimeter so the user sees the app is awake. Awaiting `compact()` first puts the
@@ -165,7 +171,75 @@ public final class AppCoordinator: ObservableObject {
 
         // Hand the host a post-launch handle on the live coordinator (e.g. for
         // NookComponents' activity queue to bind itself as a transient presenter).
-        configuration.onReady?(self)
+        fireModuleReadyIfNeeded()
+    }
+
+    // MARK: - Module switching
+
+    /// The registered modules available to switch between, in registration order.
+    public var moduleDescriptors: [NookModuleDescriptor] { moduleHost.descriptors }
+
+    /// The id of the foreground module.
+    public var activeModuleID: String { moduleHost.activeModuleID }
+
+    /// Switches the foreground module and runs the surface-side effects of the switch:
+    /// the `Nook`'s lifecycle hooks re-wire via the `$configuration` observer, the
+    /// incoming module gets a once-per-instance `onReady`, and — when the surface is
+    /// already expanded — a synthetic `onExpand` so the new content sees a consistent
+    /// lifecycle. The content cross-fades in place; the surface is not hidden, so the
+    /// outgoing module gets `onDeactivate` (via `ModuleHost`) but not `onHide`.
+    public func switchModule(to id: String) {
+        let outgoingID = moduleHost.activeModuleID
+        guard id != outgoingID else { return }
+
+        let wasExpanded = nook.state == .expanded
+        withAnimation(.easeInOut(duration: 0.22)) {
+            _ = moduleHost.switchModule(to: id)
+        }
+        guard moduleHost.activeModuleID == id else { return }
+
+        // An unloaded module is rebuilt fresh on return, so its `onReady` must fire again.
+        if !moduleHost.registry.isLoaded(outgoingID) {
+            modulesGivenOnReady.remove(outgoingID)
+        }
+        fireModuleReadyIfNeeded()
+        if wasExpanded {
+            moduleHost.configuration.onExpand?()
+        }
+    }
+
+    /// Switches to the next registered module, wrapping around. No-op for a host with a
+    /// single module.
+    public func cycleModule() {
+        let ids = moduleHost.descriptors.map(\.id)
+        guard ids.count > 1, let index = ids.firstIndex(of: moduleHost.activeModuleID) else { return }
+        switchModule(to: ids[(index + 1) % ids.count])
+    }
+
+    /// Fires the active module's `onReady` once per loaded instance.
+    private func fireModuleReadyIfNeeded() {
+        let id = moduleHost.activeModuleID
+        guard !modulesGivenOnReady.contains(id) else { return }
+        modulesGivenOnReady.insert(id)
+        moduleHost.configuration.onReady?(self)
+    }
+
+    /// Re-wires the `Nook`'s lifecycle hooks whenever the active module changes. The
+    /// initial wiring is done eagerly in the `nook` builder; this handles every switch
+    /// after launch. Theme and chrome opt-outs need no rewiring — the router views
+    /// re-read them from `moduleHost` on each layout pass.
+    private func bindModuleHost() {
+        moduleHost.$configuration
+            .dropFirst()
+            .receive(on: RunLoop.main)
+            .sink { [weak self] configuration in
+                guard let self else { return }
+                self.nook.onExpand = configuration.onExpand
+                self.nook.onCompact = configuration.onCompact
+                self.nook.onHide = configuration.onHide
+                self.nook.onFileDrop = configuration.onFileDrop ?? { _ in false }
+            }
+            .store(in: &cancellables)
     }
 
     // MARK: - Display targeting
