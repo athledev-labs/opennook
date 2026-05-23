@@ -1,0 +1,101 @@
+# OpenNook continuous integration.
+#
+# Runs the full build + test matrix on every push to main and every PR, plus a
+# license-header sanity check that pins the dual-license boundary
+# (Sources/NookSurface is MIT; everything else is Apache-2.0). The Xcode build
+# is included so the SPM ↔ Xcode parity README claim ("behavior cannot drift
+# between them") is actually verified.
+
+name: CI
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+    branches: [main]
+
+concurrency:
+  group: ${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  spm:
+    name: SwiftPM build & test
+    runs-on: macos-14
+    steps:
+      - uses: actions/checkout@v4
+      - name: Show Swift version
+        run: swift --version
+      - name: Build (all targets)
+        run: swift build
+      - name: Test
+        run: swift test --parallel
+
+  xcode:
+    name: Xcode build (parity with SPM)
+    runs-on: macos-14
+    steps:
+      - uses: actions/checkout@v4
+      - name: Install XcodeGen
+        run: brew install xcodegen
+      - name: Regenerate project from project.yml
+        run: ./Scripts/regenerate-xcodeproj.sh
+      - name: Build the Xcode app target
+        run: |
+          xcodebuild \
+            -project Nook.xcodeproj \
+            -scheme NookHostApp \
+            -configuration Debug \
+            -destination 'platform=macOS' \
+            build | xcbeautify || true
+          # xcodebuild exit code, not the formatter's:
+          xcodebuild \
+            -project Nook.xcodeproj \
+            -scheme NookHostApp \
+            -configuration Debug \
+            -destination 'platform=macOS' \
+            build
+
+  licenses:
+    name: License-header sanity
+    runs-on: macos-14
+    steps:
+      - uses: actions/checkout@v4
+      - name: Check NookSurface files carry SPDX MIT, everything else Apache-2.0
+        run: |
+          set -euo pipefail
+          fail=0
+          # Every .swift file under Sources/NookSurface must declare SPDX MIT.
+          while IFS= read -r f; do
+            if ! head -3 "$f" | grep -q 'SPDX-License-Identifier: MIT'; then
+              echo "::error file=$f::missing 'SPDX-License-Identifier: MIT' header"
+              fail=1
+            fi
+          done < <(find Sources/NookSurface -name '*.swift')
+
+          # Every other .swift file (Sources, Tests, Examples, App) must declare Apache-2.0.
+          while IFS= read -r f; do
+            if ! head -3 "$f" | grep -q 'SPDX-License-Identifier: Apache-2.0'; then
+              echo "::error file=$f::missing 'SPDX-License-Identifier: Apache-2.0' header"
+              fail=1
+            fi
+          done < <(find Sources Tests Examples App -name '*.swift' -not -path 'Sources/NookSurface/*' \
+                   -not -path 'Tests/NookKitTests/NookSurfaceConcurrencyTests.swift' \
+                   -not -path 'Tests/NookKitTests/NookShapeTests.swift')
+
+          # The two cross-boundary test files belong with NookSurface (MIT) because
+          # they @testable import it.
+          for f in \
+            Tests/NookKitTests/NookSurfaceConcurrencyTests.swift \
+            Tests/NookKitTests/NookShapeTests.swift; do
+            if [ -f "$f" ] && ! head -3 "$f" | grep -q 'SPDX-License-Identifier: MIT'; then
+              echo "::error file=$f::missing 'SPDX-License-Identifier: MIT' header (cross-boundary test)"
+              fail=1
+            fi
+          done
+
+          if [ "$fail" -ne 0 ]; then
+            echo "License-header check failed."
+            exit 1
+          fi
+          echo "License headers OK."

@@ -2,6 +2,12 @@
 
 import PackageDescription
 
+/// Centralized strict-concurrency checking — applied to every target so the
+/// examples (which a host developer reads as authoritative idiom) and tests
+/// (which a regression must not silently bypass) can't drift from the
+/// concurrency rules the library targets enforce.
+let strictConcurrency: [SwiftSetting] = [.enableUpcomingFeature("StrictConcurrency")]
+
 let package = Package(
     name: "Nook",
     platforms: [
@@ -42,13 +48,13 @@ let package = Package(
             // `@MainActor`/`Sendable` correctness is compiler-enforced. Kept as an
             // upcoming feature (not a tools-version bump to 6.0) so this stays a
             // non-breaking change for consumers — deliberate architecture decision.
-            swiftSettings: [.enableUpcomingFeature("StrictConcurrency")]
+            swiftSettings: strictConcurrency
         ),
         .target(
             name: "NookKit",
             dependencies: ["NookSurface"],
             path: "Sources/NookKit",
-            swiftSettings: [.enableUpcomingFeature("StrictConcurrency")]
+            swiftSettings: strictConcurrency
         ),
         .target(
             // Library, not executable, so both the SPM trampoline and the Xcode app
@@ -57,7 +63,7 @@ let package = Package(
             name: "NookApp",
             dependencies: ["NookKit"],
             path: "Sources/NookApp",
-            swiftSettings: [.enableUpcomingFeature("StrictConcurrency")]
+            swiftSettings: strictConcurrency
         ),
         .executableTarget(
             // SPM trampoline. Three-line `main.swift` that imports `NookApp` and calls
@@ -66,7 +72,8 @@ let package = Package(
             // identical trampoline at `App/main.swift`.
             name: "NookExecutable",
             dependencies: ["NookApp"],
-            path: "Sources/NookExecutable"
+            path: "Sources/NookExecutable",
+            swiftSettings: strictConcurrency
         ),
         .target(
             // Optional Tier 3 add-on components. Apache-2.0. Depends on NookKit
@@ -74,52 +81,61 @@ let package = Package(
             name: "NookComponents",
             dependencies: ["NookKit"],
             path: "Sources/NookComponents",
-            swiftSettings: [.enableUpcomingFeature("StrictConcurrency")]
+            swiftSettings: strictConcurrency
         ),
         .executableTarget(
             name: "HelloNook",
             dependencies: ["NookApp"],
-            path: "Examples/HelloNook"
+            path: "Examples/HelloNook",
+            swiftSettings: strictConcurrency
         ),
         .executableTarget(
             name: "ClockNook",
             dependencies: ["NookApp"],
-            path: "Examples/ClockNook"
+            path: "Examples/ClockNook",
+            swiftSettings: strictConcurrency
         ),
         .executableTarget(
             name: "ThemedNook",
             dependencies: ["NookApp"],
-            path: "Examples/ThemedNook"
+            path: "Examples/ThemedNook",
+            swiftSettings: strictConcurrency
         ),
         .executableTarget(
             name: "ShelfNook",
             dependencies: ["NookApp", "NookComponents"],
-            path: "Examples/ShelfNook"
+            path: "Examples/ShelfNook",
+            swiftSettings: strictConcurrency
         ),
         .executableTarget(
             name: "ActivityNook",
             dependencies: ["NookApp", "NookComponents"],
-            path: "Examples/ActivityNook"
+            path: "Examples/ActivityNook",
+            swiftSettings: strictConcurrency
         ),
         .executableTarget(
             name: "VolumeNook",
             dependencies: ["NookApp", "NookComponents"],
-            path: "Examples/VolumeNook"
+            path: "Examples/VolumeNook",
+            swiftSettings: strictConcurrency
         ),
         .executableTarget(
             name: "MultiNook",
             dependencies: ["NookApp"],
-            path: "Examples/MultiNook"
+            path: "Examples/MultiNook",
+            swiftSettings: strictConcurrency
         ),
         .testTarget(
             name: "NookKitTests",
             dependencies: ["NookKit", "NookSurface"],
-            path: "Tests/NookKitTests"
+            path: "Tests/NookKitTests",
+            swiftSettings: strictConcurrency
         ),
         .testTarget(
             name: "NookComponentsTests",
             dependencies: ["NookComponents"],
-            path: "Tests/NookComponentsTests"
+            path: "Tests/NookComponentsTests",
+            swiftSettings: strictConcurrency
         )
     ]
 )
