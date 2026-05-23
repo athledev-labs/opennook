@@ -52,13 +52,15 @@ protocol NookSurfaceDriving: AnyObject {
     func hide() async
 
     /// Lifecycle hooks projected onto the surface. Re-wired on a module switch.
-    var onExpand: (() -> Void)? { get set }
-    var onCompact: (() -> Void)? { get set }
-    var onHide: (() -> Void)? { get set }
-    var onFileDrop: (([URL]) -> Bool)? { get set }
+    /// Explicitly `@MainActor`-isolated to match `Nook`'s contract — every observer
+    /// touches main-actor state from these closures.
+    var onExpand: (@MainActor () -> Void)? { get set }
+    var onCompact: (@MainActor () -> Void)? { get set }
+    var onHide: (@MainActor () -> Void)? { get set }
+    var onFileDrop: (@MainActor ([URL]) -> Bool)? { get set }
 
     /// Resolves the screen the chrome should occupy when none is passed explicitly.
-    var screenProvider: (() -> NSScreen?)? { get set }
+    var screenProvider: (@MainActor () -> NSScreen?)? { get set }
 
     /// Suspends auto-compact-on-hover-exit while `true`.
     var staysExpandedOnHoverExit: Bool { get set }
@@ -69,8 +71,8 @@ protocol NookSurfaceDriving: AnyObject {
     /// Pins the chrome window's `NSAppearance`. `nil` follows the system.
     var chromeAppearance: NSAppearance? { get set }
 
-    /// Backdrop layers behind compact and expanded chrome.
-    var backdropConfiguration: NookBackdropConfiguration { get set }
+    /// What the chrome paints behind compact and expanded content.
+    var backdrop: NookBackdrop { get set }
 
     /// Open/close/conversion animation curves.
     var transitionConfiguration: NookTransitionConfiguration { get set }

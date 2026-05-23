@@ -69,7 +69,14 @@ public struct NookSurfaceToken: Hashable, Sendable {
 @MainActor
 public protocol NookSurfacePresenting: AnyObject {
     /// `true` while the user is actively engaging the surface — hovering it, or it is
-    /// open because they opened it. A transient presenter is denied while this holds.
+    /// open because they opened it via show/toggle/hide. A new claim is denied while
+    /// this holds.
+    ///
+    /// **Engagement gates `begin` only.** Engagement that *begins* after a claim has
+    /// already been granted does NOT preempt the active claim: the presenter is
+    /// responsible for yielding when the user steps in. ``NookActivityQueue`` does
+    /// this by polling ``isUserEngaged`` between dwells; a custom presenter should
+    /// observe ``userEngagementChanges`` and `end` its claim when it sees `true`.
     var isUserEngaged: Bool { get }
 
     /// Emits whenever ``isUserEngaged`` changes.

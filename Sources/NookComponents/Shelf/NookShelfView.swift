@@ -15,13 +15,9 @@ import SwiftUI
 ///
 /// Files dropped on the notch appear here once the host wires ``ShelfStore/accept(_:)``
 /// into `NookConfiguration.onFileDrop`. Each shelved file can be dragged back out to
-/// Finder or another app.
-///
-/// > Note: drag-out uses an on-disk file URL, which Finder and most apps accept. Two v1
-/// > limitations: drop targets that accept only file *promises* (Mail compose, some
-/// > upload widgets) will reject the drag; and from a *sandboxed* host, dragging file
-/// > contents into another sandboxed target needs file promises too. Both are deferred
-/// > to a promise-based revision. Persisting the shelf across launches works regardless.
+/// Finder or another app via a file-promise drag source — which works from the notch's
+/// non-activating panel, satisfies receivers that demand file promises, and brackets
+/// security-scoped access for sandboxed reads.
 public struct NookShelfView: View {
     @ObservedObject private var store: ShelfStore
     @Environment(\.nookResolvedTheme) private var theme
@@ -116,7 +112,12 @@ private struct ShelfItemChip: View {
             }
         }
         .onHover { isHovered = $0 }
-        .onDrag(dragProvider)
+        // The provider registers a *promise*: the file copy runs only when the
+        // receiver requests data, with security scope held around it. See
+        // `makeShelfDragItemProvider` for why this shape is needed (non-activating
+        // panel, promise-only receivers, sandbox scope). `ShelfItem` is Sendable, so
+        // the closure can capture by value without lifetime ceremony.
+        .onDrag { makeShelfDragItemProvider(for: item) }
         .help(item.displayName + (item.fileExtension.isEmpty ? "" : ".\(item.fileExtension)"))
     }
 
@@ -146,15 +147,5 @@ private struct ShelfItemChip: View {
         .buttonStyle(.plain)
         .help("Remove from shelf")
         .offset(x: 5, y: -5)
-    }
-
-    /// Provides the file URL for a drag-out session. An unresolvable bookmark yields an
-    /// empty provider so the drag is simply a no-op rather than a crash.
-    private func dragProvider() -> NSItemProvider {
-        guard let url = item.resolveURL(),
-              let provider = NSItemProvider(contentsOf: url) else {
-            return NSItemProvider()
-        }
-        return provider
     }
 }

@@ -130,28 +130,20 @@ where Expanded: View, CompactLeading: View, CompactTrailing: View {
     }
 
     private func notchBackdrop() -> some View {
-        let configuration = nook.backdropConfiguration
-        return Group {
-            if configuration.usesVisualEffect {
+        Group {
+            switch nook.backdrop {
+            case .vibrancy(let spec):
                 ZStack {
                     VisualEffectView(
-                        material: configuration.material,
-                        blendingMode: configuration.blendingMode
+                        material: spec.material,
+                        blendingMode: spec.blendingMode
                     )
-                    Color(
-                        red: configuration.tintRed,
-                        green: configuration.tintGreen,
-                        blue: configuration.tintBlue
-                    )
-                    .opacity(configuration.tintOpacity)
-                    Color.black.opacity(configuration.darkenOpacity)
+                    if spec.darkenOpacity > 0 {
+                        Color.black.opacity(spec.darkenOpacity)
+                    }
                 }
-            } else {
-                Color(
-                    red: configuration.opaqueRed,
-                    green: configuration.opaqueGreen,
-                    blue: configuration.opaqueBlue
-                )
+            case .solid(let color):
+                color
             }
         }
     }
@@ -208,16 +200,9 @@ where Expanded: View, CompactLeading: View, CompactTrailing: View {
             }
         }
         .frame(height: nook.notchSize.height)
-        .onChange(of: nook.disableCompactLeading) { _ in
-            if nook.disableCompactLeading {
-                compactLeadingWidth = 0
-            }
-        }
-        .onChange(of: nook.disableCompactTrailing) { _ in
-            if nook.disableCompactTrailing {
-                compactTrailingWidth = 0
-            }
-        }
+        // `disableCompactLeading/Trailing` are construction-time `let`s on `Nook` —
+        // they cannot change at runtime, so no `.onChange` reconciliation is needed.
+        // The compact widths are reset to 0 on the (hidden) transition path itself.
     }
 
     private func expandedContent() -> some View {

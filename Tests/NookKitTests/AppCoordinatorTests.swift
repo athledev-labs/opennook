@@ -201,4 +201,209 @@ final class AppCoordinatorTests: XCTestCase {
         XCTAssertEqual(a.switchAwayCount, 0)
         XCTAssertEqual(coordinator.activeModuleID, "A")
     }
+
+    // MARK: - User-engagement model
+
+    /// Drains the lifecycle chain and yields the main actor long enough for any
+    /// `.receive(on: RunLoop.main)` sinks (notably `bindSurfaceVisibility`, which
+    /// updates `appState.isNookVisible` and clears `userInitiatedOpen` on collapse)
+    /// to observe the latest surface state before the next assertion runs.
+    ///
+    /// `Task.sleep` yields the main-actor executor so RunLoop.main can deliver any
+    /// pending `.receive(on:)` sinks; a bare `Task.yield()` does not interleave with
+    /// the runloop the way these sinks are scheduled on.
+    private func drainAndPump(_ coordinator: AppCoordinator) async {
+        await coordinator.drainLifecycleForTesting()
+        try? await Task.sleep(nanoseconds: 30_000_000)  // 30 ms — generous on CI
+    }
+
+    /// REGRESSION: the arbiter's own `expand()` must NOT trip `isUserEngaged`. Before
+    /// the fix, `isUserEngaged` read `appState.isNookVisible`, which mirrored the
+    /// surface and flipped `true` as soon as the arbiter expanded — silently disabling
+    /// all subsequent preemption. After the fix, engagement reads from explicit user
+    /// intent, so the arbiter's expand leaves it `false`.
+    func testArbiterExpandDoesNotMarkUserEngaged() async {
+        let log = ExpandLog()
+        let a = SpyModule(id: "A", expandLog: log)
+        let surface = FakeNookSurface()
+        let coordinator = makeCoordinator(modules: [a], surface: surface)
+
+        let token = await coordinator.beginTransientPresentation(NookSurfaceClaim(moduleID: "A"))
+        XCTAssertNotNil(token, "arbiter granted the claim")
+        XCTAssertEqual(surface.state, .expanded, "the arbiter expanded the surface")
+
+        await drainAndPump(coordinator)
+
+        XCTAssertFalse(
+            coordinator.isUserEngaged,
+            "an arbiter-driven expand must not be read as user engagement — that was the bug"
+        )
+    }
+
+    /// REGRESSION: a strictly-higher-priority claim must preempt an in-flight lower-
+    /// priority claim, *across* the `RunLoop.main` mirror hop. Before the fix, after
+    /// the mirror flipped the second `begin()` would deny on the user-engaged branch
+    /// before the priority check even ran.
+    func testHigherPriorityClaimPreemptsAcrossMirrorHop() async {
+        let log = ExpandLog()
+        let a = SpyModule(id: "A", expandLog: log)
+        let surface = FakeNookSurface()
+        let coordinator = makeCoordinator(modules: [a], surface: surface)
+
+        let normal = await coordinator.beginTransientPresentation(
+            NookSurfaceClaim(moduleID: "A", priority: .normal)
+        )
+        XCTAssertNotNil(normal)
+        await drainAndPump(coordinator)  // let the mirror flip — this is what hid the bug
+
+        let urgent = await coordinator.beginTransientPresentation(
+            NookSurfaceClaim(moduleID: "A", priority: .urgent)
+        )
+        XCTAssertNotNil(
+            urgent,
+            "an urgent claim must preempt a normal one even after the visibility mirror has propagated"
+        )
+    }
+
+    /// A user-initiated `showNook` marks engagement, and a transient claim is denied
+    /// for the duration of that engagement.
+    func testUserShowNookMarksEngagedAndBlocksTransient() async {
+        let log = ExpandLog()
+        let a = SpyModule(id: "A", expandLog: log)
+        let surface = FakeNookSurface()
+        let coordinator = makeCoordinator(modules: [a], surface: surface)
+
+        coordinator.showNook()
+        await coordinator.drainLifecycleForTesting()
+
+        XCTAssertTrue(coordinator.isUserEngaged, "the user opened the surface — they own it")
+
+        let token = await coordinator.beginTransientPresentation(NookSurfaceClaim(moduleID: "A"))
+        XCTAssertNil(token, "a claim must be denied while the user owns the surface")
+    }
+
+    /// `hideNook` clears the user-open intent and a transient claim can then be granted.
+    func testHideNookClearsEngagement() async {
+        let log = ExpandLog()
+        let a = SpyModule(id: "A", expandLog: log)
+        let surface = FakeNookSurface()
+        let coordinator = makeCoordinator(modules: [a], surface: surface)
+
+        coordinator.showNook()
+        await coordinator.drainLifecycleForTesting()
+        XCTAssertTrue(coordinator.isUserEngaged)
+
+        coordinator.hideNook()
+        await drainAndPump(coordinator)
+        XCTAssertFalse(coordinator.isUserEngaged, "hideNook clears the user-open intent")
+
+        let token = await coordinator.beginTransientPresentation(NookSurfaceClaim(moduleID: "A"))
+        XCTAssertNotNil(token, "with the user gone, a transient claim is granted")
+    }
+
+    /// If the surface collapses independently (hover-exit auto-compact, simulated here
+    /// by a direct `compact(on:)`), the `bindSurfaceVisibility` sink clears the user-
+    /// open intent — so the arbiter is willing to grant the next claim.
+    func testHoverExitAutoCompactClearsUserOpenIntent() async {
+        let log = ExpandLog()
+        let a = SpyModule(id: "A", expandLog: log)
+        let surface = FakeNookSurface()
+        let coordinator = makeCoordinator(modules: [a], surface: surface)
+
+        coordinator.showNook()
+        await coordinator.drainLifecycleForTesting()
+        XCTAssertTrue(coordinator.isUserEngaged)
+
+        // Simulate hover-exit auto-compact: the surface drops to `.compact` without
+        // any coordinator call. The mirror sink is responsible for clearing intent.
+        await surface.compact(on: nil)
+        await drainAndPump(coordinator)
+
+        XCTAssertFalse(
+            coordinator.isUserEngaged,
+            "an independent collapse must clear the user-open intent via the mirror sink"
+        )
+
+        let token = await coordinator.beginTransientPresentation(NookSurfaceClaim(moduleID: "A"))
+        XCTAssertNotNil(token, "a transient claim is grantable after the user's nook collapsed")
+    }
+
+    /// Hover engagement counts even when the user did not open the surface — i.e.,
+    /// `userInitiatedOpen` is unset but `isHovering` is true.
+    func testHoveringBlocksTransientEvenWithoutUserOpen() async {
+        let log = ExpandLog()
+        let a = SpyModule(id: "A", expandLog: log)
+        let surface = FakeNookSurface()
+        let coordinator = makeCoordinator(modules: [a], surface: surface)
+
+        surface.isHovering = true
+        XCTAssertTrue(coordinator.isUserEngaged, "hover alone is engagement")
+
+        let denied = await coordinator.beginTransientPresentation(NookSurfaceClaim(moduleID: "A"))
+        XCTAssertNil(denied, "hover blocks a transient claim")
+
+        surface.isHovering = false
+        let granted = await coordinator.beginTransientPresentation(NookSurfaceClaim(moduleID: "A"))
+        XCTAssertNotNil(granted, "with hover gone, the claim is granted")
+    }
+
+    /// Arbiter restore-on-last-end must not leave stale user-open intent behind: after
+    /// the last claim ends and the arbiter restores the surface to compact, a fresh
+    /// claim is grantable on the next attempt.
+    func testArbiterRestoreDoesNotLeaveStaleUserOpenIntent() async {
+        let log = ExpandLog()
+        let a = SpyModule(id: "A", expandLog: log)
+        let surface = FakeNookSurface()
+        let coordinator = makeCoordinator(modules: [a], surface: surface)
+
+        let token = await coordinator.beginTransientPresentation(NookSurfaceClaim(moduleID: "A"))
+        XCTAssertNotNil(token)
+        await drainAndPump(coordinator)
+
+        await coordinator.endTransientPresentation(token!)
+        await drainAndPump(coordinator)
+
+        XCTAssertFalse(coordinator.isUserEngaged, "arbiter restore leaves no stale engagement")
+
+        let again = await coordinator.beginTransientPresentation(NookSurfaceClaim(moduleID: "A"))
+        XCTAssertNotNil(again, "the surface is grantable again after the previous claim restored")
+    }
+
+    /// Contract: engagement that *begins* after a claim is granted does NOT preempt
+    /// the active claim. The presenter is responsible for yielding (see
+    /// ``NookActivityQueue``'s `waitWhileUserEngaged`). This test pins the begin-gate-
+    /// only semantics so a future change can't silently introduce mid-claim eviction.
+    func testEngagementMidClaimDoesNotPreemptActiveClaim() async {
+        let log = ExpandLog()
+        let a = SpyModule(id: "A", expandLog: log)
+        let surface = FakeNookSurface()
+        let coordinator = makeCoordinator(modules: [a], surface: surface)
+
+        let token = await coordinator.beginTransientPresentation(NookSurfaceClaim(moduleID: "A"))
+        XCTAssertNotNil(token)
+        XCTAssertEqual(surface.state, .expanded)
+
+        // The user starts hovering AFTER the claim is granted.
+        surface.isHovering = true
+        XCTAssertTrue(coordinator.isUserEngaged)
+
+        // The surface is still expanded — the arbiter does not force-end mid-claim.
+        XCTAssertEqual(
+            surface.state, .expanded,
+            "mid-claim engagement does NOT preempt — the presenter must yield itself"
+        )
+
+        // A NEW claim, however, is denied — engagement gates `begin`.
+        let denied = await coordinator.beginTransientPresentation(NookSurfaceClaim(moduleID: "A"))
+        XCTAssertNil(denied, "a new claim is denied while the user is now engaged")
+
+        // Ending the original token while the user is engaged leaves the surface as-is
+        // (the arbiter's `end` skips restore when `isUserEngaged()` is true).
+        await coordinator.endTransientPresentation(token!)
+        await coordinator.drainLifecycleForTesting()
+        XCTAssertEqual(
+            surface.state, .expanded,
+            "end-during-engagement leaves the user's state alone (no restore)"
+        )
+    }
 }

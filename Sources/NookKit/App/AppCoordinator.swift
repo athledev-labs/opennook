@@ -66,6 +66,33 @@ public final class AppCoordinator: ObservableObject {
     /// duplicate observers, sinks, and `onReady` callbacks.
     private var hasStarted = false
 
+    /// User-initiated open intent — `true` from the moment the user opens the surface
+    /// (toggleNook / showNook / showHome / showSettings) until it leaves `.expanded`
+    /// for any reason. Drives ``isUserEngaged`` together with `surface.isHovering`.
+    ///
+    /// This is *intent*, not a mirror of surface state. The arbiter's own `expand()`
+    /// flips the surface to `.expanded` but does NOT set this flag — so a later
+    /// higher-priority claim can preempt without the gate falsely tripping. The old
+    /// model (engagement = `isNookVisible || isHovering`) had exactly that bug,
+    /// because the mirror flipped from the arbiter's own expand and silently
+    /// disabled all subsequent preemption.
+    ///
+    /// Read/written via ``setUserInitiatedOpen(_:)`` so changes publish through
+    /// ``userInitiatedOpenSubject`` for ``userEngagementChanges``.
+    private var userInitiatedOpen: Bool = false
+
+    /// Backing publisher for ``userInitiatedOpen``; combined with the surface's hover
+    /// publisher to drive ``userEngagementChanges``.
+    private let userInitiatedOpenSubject = CurrentValueSubject<Bool, Never>(false)
+
+    /// Single setter for ``userInitiatedOpen`` that publishes through
+    /// ``userInitiatedOpenSubject``. Idempotent: a no-op when the value is unchanged.
+    private func setUserInitiatedOpen(_ value: Bool) {
+        guard userInitiatedOpen != value else { return }
+        userInitiatedOpen = value
+        userInitiatedOpenSubject.send(value)
+    }
+
     /// Module ids whose `onReady` has already fired. A module's `onReady` runs once per
     /// *loaded instance* — when it is unloaded (`unloadOnSwitchAway`) the id is dropped
     /// so a rebuilt instance gets a fresh `onReady` (e.g. to re-bind an activity queue).
@@ -199,6 +226,12 @@ public final class AppCoordinator: ObservableObject {
         )
 
         bindBackdropSynchronization()
+        // Bind the surface-state mirror at init, not at start: it is pure observation
+        // (writes only to `appState.isNookVisible` and clears `userInitiatedOpen` on
+        // independent collapse), and the arbiter's engagement bookkeeping depends on
+        // it being live from the moment the coordinator exists — including in tests
+        // that construct a coordinator without calling `start()`.
+        bindSurfaceVisibility()
 
         coordinatorBox.coordinator = self
         // Project the active module's lifecycle callbacks onto the surface. The hooks
@@ -228,7 +261,8 @@ public final class AppCoordinator: ObservableObject {
         registerModuleHotkeys()
         bindHotkeyRegistration()
         bindNookDragSession()
-        bindSurfaceVisibility()
+        // `bindSurfaceVisibility` was moved to `init` — it must be live before any
+        // arbiter claim is granted, including in tests that don't call `start()`.
 
         // Cold-launch greeting: compact the chrome, then fire a one-shot shimmer along the
         // perimeter so the user sees the app is awake. Awaiting `compact()` first puts the
@@ -394,7 +428,9 @@ public final class AppCoordinator: ObservableObject {
     // MARK: - Global hotkey
 
     /// String id of the global show/hide registration in ``HotkeyController``.
-    private static let toggleHotkeyID = "toggle"
+    /// Hoisted to ``NookHotkeyIDs/toggle`` so view code can reference it without a
+    /// magic-string literal that could drift.
+    private static var toggleHotkeyID: String { NookHotkeyIDs.toggle }
 
     /// Registers the current `appState.hotkey` as the global show/hide shortcut.
     /// Skipped while the user is mid-recording so the old shortcut can't fire.
@@ -428,15 +464,16 @@ public final class AppCoordinator: ObservableObject {
         for descriptor in moduleHost.descriptors {
             guard let hotkey = descriptor.hotkey else { continue }
             let id = descriptor.id
+            let registrationID = NookHotkeyIDs.module(id)
             let status = hotkeyController.register(
-                "module.\(id)",
+                registrationID,
                 keyCode: hotkey.keyCode,
                 modifiers: hotkey.carbonModifiers
             ) { [weak self] in
                 Task { @MainActor in self?.switchModule(to: id) }
             }
             recordHotkeyOutcome(
-                id: "module.\(id)",
+                id: registrationID,
                 status: status,
                 shortcutName: descriptor.displayName,
                 hotkey: hotkey
@@ -445,14 +482,14 @@ public final class AppCoordinator: ObservableObject {
 
         if let cycle = moduleHost.cycleHotkey {
             let status = hotkeyController.register(
-                "cycle",
+                NookHotkeyIDs.cycle,
                 keyCode: cycle.keyCode,
                 modifiers: cycle.carbonModifiers
             ) { [weak self] in
                 Task { @MainActor in self?.cycleModule() }
             }
             recordHotkeyOutcome(
-                id: "cycle",
+                id: NookHotkeyIDs.cycle,
                 status: status,
                 shortcutName: "Cycle Modules",
                 hotkey: cycle
@@ -477,17 +514,18 @@ public final class AppCoordinator: ObservableObject {
 
     /// Keeps the live hotkey registration in sync with `appState`: re-register when the
     /// user picks a new shortcut, and suspend registration entirely while recording.
+    ///
+    /// Combined into a single sink so a recording-finished event (which fires both
+    /// `$hotkey` and `$isRecordingHotkey` on the same runloop turn) re-registers
+    /// once, not twice — and the durable failure channel records one outcome per
+    /// user action instead of two.
     private func bindHotkeyRegistration() {
         appState.$hotkey
-            .dropFirst()
+            .combineLatest(appState.$isRecordingHotkey)
+            .dropFirst()  // skip the cold-launch publish of initial values
+            .removeDuplicates(by: { $0 == $1 })
             .receive(on: RunLoop.main)
-            .sink { [weak self] _ in self?.registerGlobalHotkey() }
-            .store(in: &cancellables)
-
-        appState.$isRecordingHotkey
-            .dropFirst()
-            .receive(on: RunLoop.main)
-            .sink { [weak self] isRecording in
+            .sink { [weak self] _, isRecording in
                 guard let self else { return }
                 if isRecording {
                     self.hotkeyController.unregister(Self.toggleHotkeyID)
@@ -499,7 +537,12 @@ public final class AppCoordinator: ObservableObject {
     }
 
     private func bindBackdropSynchronization() {
+        // `dropFirst` skips the cold-launch publish of the current preferences:
+        // `start()` calls `syncNotchBackdrop()` directly so the backdrop is correct
+        // before any window appears, and we don't want this sink to fire again on the
+        // same value the moment the subscription installs.
         appState.$appearancePreferences
+            .dropFirst()
             .receive(on: RunLoop.main)
             .sink { [weak self] _ in self?.syncNotchBackdrop() }
             .store(in: &cancellables)
@@ -535,23 +578,32 @@ public final class AppCoordinator: ObservableObject {
         // Pin the window appearance first: the backdrop's visual-effect material resolves
         // against it, so a forced light/dark theme needs both to agree.
         surface.chromeAppearance = appState.appearancePreferences.chromeAppearanceOverride
-        surface.backdropConfiguration = NookBackdropMapping.notchBackdrop(
+        surface.backdrop = NookBackdropMapping.notchBackdrop(
             preferences: appState.appearancePreferences,
             effectiveColorScheme: scheme,
             reduceTransparency: reduceTransparency
         )
     }
 
-    /// Mirrors the surface's live ``NookState`` onto `appState.isNookVisible`. This is the
-    /// single source of truth for "is the nook expanded" — it catches hover- and
-    /// drag-driven transitions, which coordinator-initiated show/hide cannot.
+    /// Mirrors the surface's live ``NookState`` onto `appState.isNookVisible`, and bounds
+    /// ``userInitiatedOpen`` by it: any independent collapse — hover-exit auto-compact,
+    /// drag dismiss, arbiter restore — cleanly clears intent without explicit teardown.
+    ///
+    /// This single sink is the only writer of `appState.isNookVisible` and the only
+    /// path that clears `userInitiatedOpen` on independent collapse; the user-action
+    /// entry points (``hideNook``, the compact branch of ``toggleNook``) clear intent
+    /// synchronously *before* compact runs, then this sink confirms it.
     private func bindSurfaceVisibility() {
         surface.statePublisher
             .map { $0 == .expanded }
             .removeDuplicates()
             .receive(on: RunLoop.main)
             .sink { [weak self] expanded in
-                self?.appState.isNookVisible = expanded
+                guard let self else { return }
+                self.appState.isNookVisible = expanded
+                if !expanded {
+                    self.setUserInitiatedOpen(false)
+                }
             }
             .store(in: &cancellables)
     }
@@ -578,8 +630,10 @@ public final class AppCoordinator: ObservableObject {
             // toggle closed even though no coordinator call opened it, and deciding
             // before the serial chain reaches us would race other queued transitions.
             if self.surface.state == .expanded {
+                self.setUserInitiatedOpen(false)
                 await self.surface.compact(on: nil)
             } else {
+                self.setUserInitiatedOpen(true)
                 self.surface.staysExpandedOnHoverExit = self.appState.keepNookOpen
                 await self.surface.expand(on: nil)
             }
@@ -590,6 +644,7 @@ public final class AppCoordinator: ObservableObject {
         appState.resetTransientStatus()
         enqueueLifecycle { [weak self] in
             guard let self else { return }
+            self.setUserInitiatedOpen(true)
             self.surface.staysExpandedOnHoverExit = self.appState.keepNookOpen
             await self.surface.expand(on: nil)
         }
@@ -604,7 +659,7 @@ public final class AppCoordinator: ObservableObject {
     /// (``NookConfiguration/showsSettings`` is `false`) there is no Settings UI, so this
     /// falls back to showing the home surface and `viewMode` stays `.home`.
     public func showSettings() {
-        guard configuration.showsSettings else {
+        guard configuration.topBar.showsSettings else {
             showNook()
             return
         }
@@ -614,7 +669,9 @@ public final class AppCoordinator: ObservableObject {
 
     public func hideNook() {
         enqueueLifecycle { [weak self] in
-            await self?.surface.compact(on: nil)
+            guard let self else { return }
+            self.setUserInitiatedOpen(false)
+            await self.surface.compact(on: nil)
         }
     }
 
@@ -660,12 +717,16 @@ public final class AppCoordinator: ObservableObject {
 extension AppCoordinator: NookSurfacePresenting {
     /// The user owns the surface while they're hovering it or while they opened it
     /// themselves; a transient presenter pauses in either case.
+    ///
+    /// Sources from ``userInitiatedOpen`` (user intent) — NOT `appState.isNookVisible`
+    /// (surface mirror) — so the arbiter's own `expand()` never trips this gate on a
+    /// subsequent preempting claim.
     public var isUserEngaged: Bool {
-        appState.isNookVisible || surface.isHovering
+        userInitiatedOpen || surface.isHovering
     }
 
     public var userEngagementChanges: AnyPublisher<Bool, Never> {
-        appState.$isNookVisible
+        userInitiatedOpenSubject
             .combineLatest(surface.isHoveringPublisher)
             .map { $0 || $1 }
             .removeDuplicates()

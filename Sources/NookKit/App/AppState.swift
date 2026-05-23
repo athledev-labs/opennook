@@ -63,6 +63,11 @@ public final class AppState: ObservableObject {
     /// stays accurate for hover- and drag-driven transitions too, not just
     /// coordinator-initiated show/hide. Drive visibility through ``AppCoordinator``,
     /// never by writing this.
+    ///
+    /// This is purely a view-model mirror. It is NOT consulted by the surface arbiter
+    /// to decide "is the user engaged" — see ``AppCoordinator/isUserEngaged``, which
+    /// reads an explicit user-intent flag to avoid mistaking the arbiter's own expand
+    /// for user engagement.
     @Published public internal(set) var isNookVisible = false
 
     /// Transient status channel — a short-lived message tied to a single nook session.

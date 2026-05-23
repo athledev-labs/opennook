@@ -96,6 +96,9 @@ final class SurfaceArbiter {
             // A background module reaches the surface only with an urgent claim.
             if claim.moduleID != activeModuleID(), claim.priority < .urgent { return }
             // The user owns the surface whenever they are engaging it.
+            // `isUserEngaged()` reflects user intent + hover — NOT mirror surface
+            // state — so the arbiter's own `expand()` below never trips this gate
+            // on a subsequent preempting claim.
             if isUserEngaged() { return }
             // Only a strictly higher priority preempts the claim already on screen.
             if let top = stack.last, claim.priority <= top.claim.priority { return }
