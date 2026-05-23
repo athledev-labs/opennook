@@ -118,10 +118,9 @@ final class NookActivityQueueTests: XCTestCase {
         XCTAssertEqual(presenter.beginCount, 1)
     }
 
-    /// Regression: suspending the queue *while the user is engaged* must still let the
-    /// drain task observe its own cancellation. The engagement wait used to park on a
-    /// duplicate-collapsing publisher that never re-emitted, leaking the cancelled task;
-    /// after `resume()` the queue must drive cleanly to completion.
+    /// Regression: suspending the queue *while the user is engaged* must let the drain
+    /// task wind down cooperatively, and after `resume()` the queue must drive cleanly
+    /// to completion once the user disengages.
     @MainActor
     func testSuspendWhileEngagedThenResumeRecovers() async throws {
         let queue = instantQueue()
@@ -134,11 +133,14 @@ final class NookActivityQueueTests: XCTestCase {
         try await Task.sleep(for: .milliseconds(50))
         XCTAssertEqual(presenter.beginCount, 0, "must not present while the user is engaged")
 
-        // Suspend mid-yield: the drain task is cancelled and must actually unwind.
+        // Cooperative suspend: the drain task is NOT cancelled — it exits on its own
+        // when the engagement-wait next polls (≤200ms) or when the current dwell ends.
         queue.suspend()
-        XCTAssertNil(queue.drainTask, "suspend clears the drain task")
+        await queue.drainTask?.value
+        XCTAssertNil(queue.drainTask, "drain task cleared itself after the cooperative exit")
 
-        // Resume while still engaged, then disengage — the queue must not be wedged.
+        // Resume while still engaged — a fresh drain task spawns and re-parks in the
+        // engagement wait. Disengage, then drain to completion.
         queue.resume()
         try await Task.sleep(for: .milliseconds(50))
         XCTAssertEqual(presenter.beginCount, 0, "still yields after resume while engaged")
@@ -148,6 +150,85 @@ final class NookActivityQueueTests: XCTestCase {
         XCTAssertEqual(presenter.beginCount, 1, "queue recovers and drains after suspend-while-engaged")
         XCTAssertTrue(queue.pending.isEmpty)
         XCTAssertNil(queue.current)
+    }
+
+    /// Regression: a `suspend()` issued *while an activity is dwelling on screen* must
+    /// let that dwell finish and the claim release normally — not cancel mid-dwell and
+    /// strand the arbiter token. The contract advertised by `suspend()` says the
+    /// current activity finishes; this pins it.
+    @MainActor
+    func testSuspendDuringDwellLetsCurrentActivityFinish() async throws {
+        // A real (but short) dwell so suspend() can land while one is on screen.
+        let queue = NookActivityQueue(sleep: { _ in try? await Task.sleep(for: .milliseconds(150)) })
+        let presenter = FakePresenter()
+        queue.bind(to: presenter)
+
+        queue.enqueue(NookActivity(title: "A"))
+        // Wait until the claim is granted and the activity is dwelling on screen.
+        try await Task.sleep(for: .milliseconds(50))
+        XCTAssertEqual(presenter.beginCount, 1, "activity claim granted")
+        XCTAssertEqual(presenter.endCount, 0, "still dwelling")
+        XCTAssertNotNil(queue.current)
+
+        queue.suspend()
+        // suspend() must NOT cancel the drain task — the current dwell must complete.
+        await queue.drainTask?.value
+
+        XCTAssertEqual(presenter.endCount, 1, "in-flight activity released its claim normally")
+        XCTAssertNil(queue.current, "current cleared after the dwell finished")
+        XCTAssertNil(queue.drainTask)
+    }
+
+    /// Regression: `suspend()` then `resume()` (without a `quiesce()` in between) must
+    /// not leak a stranded arbiter claim. Before the cooperative-suspend fix, a hard
+    /// cancel mid-dwell skipped `endTransientPresentation` and only the next
+    /// `quiesce()` released the token; under repeated suspend/resume cycles the claim
+    /// counter drifted by one per cycle.
+    @MainActor
+    func testSuspendResumeCycleDoesNotStrandClaim() async throws {
+        let queue = NookActivityQueue(sleep: { _ in try? await Task.sleep(for: .milliseconds(80)) })
+        let presenter = FakePresenter()
+        queue.bind(to: presenter)
+
+        queue.enqueue(NookActivity(title: "A"))
+        try await Task.sleep(for: .milliseconds(20))  // claim granted, dwell parking
+        queue.suspend()
+        await queue.drainTask?.value
+        XCTAssertEqual(presenter.beginCount, presenter.endCount, "begin/end balanced after suspend")
+
+        queue.resume()
+        queue.enqueue(NookActivity(title: "B"))
+        await queue.drainTask?.value
+        XCTAssertEqual(presenter.beginCount, 2)
+        XCTAssertEqual(presenter.endCount, 2, "no claim was stranded across the suspend/resume")
+    }
+
+    /// Regression: a rejected takeover requeues at the *end* of its priority class, not
+    /// the front. A peer already waiting at the same priority must still go first.
+    @MainActor
+    func testRequeuePreservesFIFOWithinPriority() async {
+        let queue = instantQueue()
+        let presenter = FakePresenter()
+        // Reject only the *first* takeover so we can pin the requeue position.
+        presenter.rejectNextBegins = 1
+        queue.bind(to: presenter)
+
+        var presented: [String] = []
+        let cancellable = queue.$current
+            .compactMap { $0?.title }
+            .sink { presented.append($0) }
+
+        // A is enqueued first and is the one whose first takeover gets rejected.
+        // B is enqueued *before* the retry — at the same priority. FIFO-within-priority
+        // means B presents before A's retry.
+        queue.enqueue(NookActivity(priority: .normal, title: "A"))
+        queue.enqueue(NookActivity(priority: .normal, title: "B"))
+        await queue.drainTask?.value
+        cancellable.cancel()
+
+        XCTAssertEqual(presented, ["B", "A"], "B (waiting same-priority peer) goes before A's retry")
+        XCTAssertEqual(presenter.beginCount, 3, "A rejected once, A retried, B presented")
+        XCTAssertEqual(presenter.endCount, 2, "exactly two presentations completed")
     }
 
     /// Regression: if the user grabs the surface in the window between the engagement

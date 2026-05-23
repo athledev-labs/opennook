@@ -95,13 +95,21 @@ public final class NookActivityQueue: ObservableObject {
         pending.removeAll { $0.coalescingKey == coalescingKey }
     }
 
-    /// Pauses draining. An activity already on screen finishes its dwell; nothing new is
-    /// presented until ``resume()``.
+    /// Pauses draining cooperatively. An activity already on screen finishes its dwell
+    /// and releases its surface claim normally; nothing new is presented until
+    /// ``resume()``. The engaged-yield poll exits on the next tick (≤200 ms).
+    ///
+    /// Cooperative on purpose: a hard cancel mid-dwell would skip the
+    /// `endTransientPresentation` call in the drain loop and strand the arbiter claim
+    /// until the next ``quiesce()`` released it. Use ``quiesce()`` when you need hard
+    /// teardown — e.g. on module switch-away or queue destruction.
     public func suspend() {
         guard !isSuspended else { return }
         isSuspended = true
-        drainTask?.cancel()
-        drainTask = nil
+        // Do NOT cancel `drainTask` here — see doc comment. The loop checks
+        // `isSuspended` at the top of each iteration and at the engagement-wait poll;
+        // it exits on its own once the current activity finishes (or immediately if
+        // it was parked in a wait).
     }
 
     /// Resumes draining after ``suspend()``.
@@ -193,10 +201,16 @@ public final class NookActivityQueue: ObservableObject {
         }
     }
 
-    /// Returns an activity to the front of the pending queue after a rejected takeover.
-    /// Front insertion preserves FIFO order against same-priority peers on the retry.
+    /// Returns an activity to the pending queue after a rejected takeover.
+    ///
+    /// Appended, not front-inserted: ``dequeue()`` picks the *first* element of the
+    /// highest priority, so appending puts the rejected item behind any same-priority
+    /// peers that were already waiting. That preserves FIFO order within a priority
+    /// class — a peer enqueued before the takeover still gets its turn first, the
+    /// retry happens after. A higher-priority enqueue arriving during the contention
+    /// backoff still preempts (dequeue's max-priority pass picks it first).
     private func requeue(_ activity: NookActivity) {
-        pending.insert(activity, at: 0)
+        pending.append(activity)
     }
 
     /// Removes and returns the highest-priority pending activity, FIFO within a priority.
