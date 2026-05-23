@@ -1,0 +1,18 @@
+---
+title: File shelf
+description: A drop-files-on-the-notch shelf component.
+---
+
+The shelf lets users drop files onto the notch; they collect in a persistent
+`ShelfStore` and can be dragged back out. It lives in the `NookComponents`
+product, so depend on that product when you want it. Render it with
+`NookShelfView` and wire `ShelfStore.accept` into
+`NookConfiguration.onFileDrop`.
+
+See `Examples/ShelfNook/main.swift` in the repo for the working pattern,
+including how the shelf detects the App Sandbox at runtime
+(`ShelfRuntime.isSandboxed`) and switches to a stricter acceptance mode.
+
+:::note[TODO]
+Full guide pending. For now, the example file is the source of truth.
+:::

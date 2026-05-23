@@ -1,0 +1,61 @@
+---
+title: Introduction
+description: What OpenNook is, who it's for, and what's in the box.
+---
+
+OpenNook is a Swift framework for building macOS apps that live in the
+menu-bar notch. It hands you a polished window that hover-expands out of the
+notch, a translucent backdrop, a settings shell, and a global hotkey — so you
+can drop a SwiftUI view into the expanded surface and have a working notch
+app. It is a base layer plus a working demo, not a finished product. The demo
+is intentionally minimal and exists as a known-good starting point to fork
+from.
+
+## Who it's for
+
+Swift developers who want to ship a notch-resident utility (a clock, a
+clipboard, a counter, a shelf, a live-activity surface) without rebuilding
+the window machinery from scratch.
+
+## What's inside
+
+OpenNook is two Swift modules, a thin demo app, and an optional components
+library.
+
+### `NookSurface` — the notch window
+
+The low-level chrome: the notch-shaped panel itself, its shape geometry,
+hover behavior, expand/compact lifecycle, the translucent backdrop, and the
+shimmer feedback overlay. This is a trimmed, renamed fork of
+[DynamicNotchKit](https://github.com/MrKai77/DynamicNotchKit) and is licensed
+MIT.
+
+You usually don't edit `NookSurface` — you drive it through `NookKit`.
+
+### `NookKit` — the app chrome
+
+Everything built on top of `NookSurface` to make it feel like an app:
+lifecycle (`AppCoordinator`), shared state (`AppState`), a dependency
+container (`AppServices`), persisted appearance preferences, the framework
+chrome shell (top bar + Settings) that hosts your registered home view, the
+compact slots flanking the physical notch, and a Carbon-based global hotkey
+controller.
+
+### `NookApp` — the library entry point
+
+`NookApp.main { MyHomeView() }` is the one-line entry that wires the
+`NSApplication`, the coordinator, the menu-bar fallback, and your view
+together. Take a `NookConfiguration` overload when you need more control.
+
+### `NookComponents` — optional add-ons
+
+Opt-in components built on the layers above. Depend on this product only
+when you want one — it is not pulled in by `NookApp`.
+
+- **Shelf** — drop files onto the notch, they collect in a persistent
+  `ShelfStore`, drag them back out. See `Examples/ShelfNook`.
+- **Activities** — a priority live-activity queue that briefly takes over
+  the expanded surface and yields when the user engages it. See
+  `Examples/ActivityNook`.
+- **Volume** — an ambient volume glyph in the compact pill, driven by
+  public CoreAudio APIs. See `Examples/VolumeNook`.

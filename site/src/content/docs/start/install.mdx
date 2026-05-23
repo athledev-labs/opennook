@@ -1,0 +1,43 @@
+---
+title: Install
+description: Add OpenNook to your Swift package.
+---
+
+OpenNook is distributed as a Swift package. It targets macOS 13 or later and
+Swift 5.9 or later.
+
+## Add the package dependency
+
+In your `Package.swift`, add OpenNook to `dependencies`:
+
+```swift
+.package(url: "https://github.com/glendonC/opennook", from: "0.1.0"),
+```
+
+Then add the products you need to your target's `dependencies`:
+
+```swift
+.target(
+  name: "MyApp",
+  dependencies: [
+    .product(name: "NookApp", package: "opennook"),
+    // Optional: only if you want the shelf / activity / volume add-ons.
+    .product(name: "NookComponents", package: "opennook"),
+  ]
+)
+```
+
+`NookApp` is the public entry point — it transitively brings in `NookKit`
+and `NookSurface`. `NookComponents` is opt-in.
+
+## Requirements
+
+- macOS 13 or later
+- Swift 5.9 or later
+- Xcode command line tools
+
+## In Xcode
+
+File → Add Package Dependencies, paste
+`https://github.com/glendonC/opennook`, and add the `NookApp` product
+(and `NookComponents` if you want it) to your app target.

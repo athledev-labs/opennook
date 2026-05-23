@@ -1,0 +1,17 @@
+---
+title: Activity queue
+description: A priority live-activity queue for the expanded surface.
+---
+
+`NookActivityQueue` collects transient activities, orders them by priority,
+coalesces duplicates, and presents each by briefly taking over the expanded
+surface. It yields the surface whenever the user is engaging it. It lives
+in the `NookComponents` product. Bind it via `NookConfiguration.onReady`
+and render with `NookActivityHost`.
+
+See `Examples/ActivityNook/main.swift` in the repo for the working pattern.
+
+:::note[TODO]
+Full guide pending — priority model, coalescing rules, and yield-on-engage
+behavior need their own write-up.
+:::

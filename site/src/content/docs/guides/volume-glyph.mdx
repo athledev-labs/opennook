@@ -1,0 +1,16 @@
+---
+title: Volume glyph
+description: An ambient volume indicator in the compact pill.
+---
+
+`SystemVolumeObserver` tracks the default output device's volume and mute
+state via public CoreAudio APIs. `NookVolumeIndicator` renders it as a
+compact-slot glyph. It shows the level — it does not intercept or replace
+Apple's volume HUD. It lives in the `NookComponents` product.
+
+See `Examples/VolumeNook/main.swift` in the repo for the working pattern.
+
+:::note[TODO]
+Full guide pending — device switching, mute behavior, and multi-channel
+handling deserve their own section.
+:::

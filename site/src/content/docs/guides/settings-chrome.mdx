@@ -1,0 +1,40 @@
+---
+title: Settings chrome
+description: Configure the top bar, the gear, and what the chrome shows.
+---
+
+The chrome — top bar, lock (keep-open), and Settings gear — is driven by
+flags on `NookConfiguration.topBar`. You can replace the leading identity
+(label + icon), strip the top bar entirely, or keep the bar while dropping
+the gear.
+
+```swift
+var configuration = NookConfiguration()
+
+// Replace the leading identity. Defaults: title "Home", icon "house".
+configuration.topBar.leadingTitle = { _ in "Today" }
+configuration.topBar.leadingIcon = nil
+
+// Chrome flags.
+configuration.topBar.showsTopBar = true   // false strips top bar + gear + lock
+configuration.topBar.showsSettings = true // false drops the gear (top bar stays)
+```
+
+## `showsTopBar`
+
+When `false`, the chrome shell renders only your home view inside the
+expanded surface — no top bar, no gear, no lock. Use this when your view
+owns the entire surface.
+
+## `showsSettings`
+
+When `false`, the top bar remains (so the lock and any leading identity are
+still visible) but the gear is removed. Use this when you ship without
+exposing the framework's Settings panels.
+
+## `topBar.leadingTitle` / `topBar.leadingIcon`
+
+The leading cluster is the home glyph plus a label. Both are functions of
+the resolved `AppState`, so they can respond to your product state. Set
+`leadingIcon` to `nil` to drop the SF Symbol; set `leadingTitle` to return
+empty to drop the label.

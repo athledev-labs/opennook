@@ -1,0 +1,22 @@
+---
+title: Theming
+description: Supply a palette resolver and read it from your views.
+---
+
+OpenNook resolves a palette per-launch from the current `AppState` (which
+carries appearance preferences and view mode). You supply a resolver via
+`NookConfiguration.theme`; your views read the result from the
+`\.nookResolvedTheme` environment value.
+
+```swift
+var configuration = NookConfiguration()
+configuration.theme = { appState in MyPalette.resolve(appState) }
+```
+
+See `Examples/ThemedNook/main.swift` in the repo for a complete host-supplied
+theme with lifecycle hooks.
+
+:::note[TODO]
+Full theming guide pending — the resolved-theme structure, surface styles,
+and how appearance preferences are persisted.
+:::

@@ -1,0 +1,70 @@
+---
+title: Your first nook
+description: Register a view, customize the chrome, drive the lifecycle.
+---
+
+You depend on OpenNook as a package and customize it through public API —
+you do **not** fork the framework. Four steps take you from empty target to
+running notch app.
+
+## 1. Register a view
+
+Hand `NookApp.main` your expanded home view; the top bar, Settings, hotkey,
+and compact pill all come for free:
+
+```swift
+import NookApp
+import SwiftUI
+
+NookApp.main { MyHomeView() }
+```
+
+Run it and press **⌥⌘;** (or use the menu-bar item) to expand the nook.
+
+## 2. Customize via `NookConfiguration`
+
+Use this when you need more than a home view — the compact slots, the
+chrome theme, the top bar's leading label/icon, the chrome flags, lifecycle
+hooks, and file drops:
+
+```swift
+var configuration = NookConfiguration()
+configuration.setHome { MyHomeView() }
+configuration.setCompactTrailing { MyGlyph() }
+configuration.theme = { appState in MyPalette.resolve(appState) }
+
+// Top bar — leading cluster identity and chrome flags live on `topBar`.
+configuration.topBar.leadingTitle = { _ in "Today" }  // default: "Home"
+configuration.topBar.leadingIcon = nil                // default: "house"
+configuration.topBar.showsTopBar = true               // false strips top bar + gear + lock
+configuration.topBar.showsSettings = true             // false drops the gear (top bar stays)
+
+// Lifecycle hooks.
+configuration.onExpand    = { print("nook expanded") }
+configuration.onCompact   = { /* user dismissed / hover-exit collapsed the nook */ }
+configuration.onHide      = { /* nook went hidden */ }
+configuration.onFileDrop  = { urls in /* accept/reject dropped files */ true }
+configuration.onReady     = { coordinator in /* post-launch handle for components */ }
+
+NookApp.main(configuration)
+```
+
+Your views read the resolved palette from the `\.nookResolvedTheme`
+environment value and shared services from `\.appServices`.
+
+## 3. Add your state and services
+
+`AppState` (`Sources/NookKit/App/AppState.swift`) holds chrome state — add
+product state alongside it. `AppServices`
+(`Sources/NookKit/App/AppServices.swift`) is the dependency container
+threaded into views.
+
+## 4. Drive the chrome
+
+`AppCoordinator` exposes the lifecycle vocabulary: `showNook()`,
+`hideNook()`, `toggleNook()`, `toggleKeepNookOpen()`. The global hotkey and
+menu-bar fallback already call into them.
+
+Rename the product (`Nook` → your app) by editing `project.yml`,
+`App/Info.plist`, and the `Package.swift` product name when you're ready
+to ship.
