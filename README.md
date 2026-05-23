@@ -58,7 +58,7 @@ Everything built on top of `NookSurface` to make it feel like an app:
 - `App/Views/NookTopBar.swift` — home glyph + lock (keep-open) + gear.
 - `App/Views/Compact/CompactViews.swift` — the left/right slots flanking the
   physical notch when collapsed.
-- `App/Views/Settings/` — Appearance, Shortcut, Data, and Advanced panels.
+- `App/Views/Settings/` — Appearance, Display, Hotkey, and Data panels.
 - `App/Views/Shared/` — reusable settings primitives.
 - `System/HotkeyController.swift` — a Carbon-based global hotkey.
 
@@ -135,6 +135,7 @@ swift run ThemedNook    # a host-supplied theme + lifecycle hooks
 swift run ShelfNook     # a drop-files-on-the-notch shelf (NookComponents)
 swift run ActivityNook  # a priority live-activity queue (NookComponents)
 swift run VolumeNook    # an ambient volume glyph in the compact pill (NookComponents)
+swift run MultiNook     # multiple interchangeable modules sharing one surface
 ```
 
 ## Start your own notch app
@@ -182,6 +183,44 @@ hotkey and menu-bar fallback already call into them.
 Rename the product (`Nook` → your app) by editing `project.yml`,
 `App/Info.plist`, and the `Package.swift` product name when you're ready to
 ship.
+
+## Multiple modules in one notch
+
+A single host can run several interchangeable *modules* — independent notch
+apps sharing one surface, one menu bar, and one set of preferences. Each
+module ships its own `NookConfiguration`, its own services, and an optional
+global shortcut for direct-jump or cycle-through. Use this when the notch
+should host distinct surfaces (a clock, a counter, a notepad) that the user
+flips between rather than nesting inside one home view.
+
+```swift
+import NookApp
+
+var host = NookHostConfiguration()
+
+// A NookModule type that builds its own configuration and services.
+host.register(CounterModule.moduleDescriptor) { context in
+    CounterModule(context: context)
+}
+
+// Or just register a configuration closure for the simpler cases.
+host.register(
+    NookModuleDescriptor(id: "com.example.clock", displayName: "Clock", icon: "clock"),
+    configuration: { clockConfiguration() }
+)
+
+host.defaultModule = CounterModule.moduleDescriptor.id
+host.moduleCycleHotkey = NookHotkey(keyCode: 50, carbonModifiers: 4096 | 2048, keySymbol: "`")
+
+NookApp.main(host)
+```
+
+The active module's hooks/services drive the surface; switching is one
+atomic transaction on the lifecycle chain (no half-applied state, no
+arbiter claims leaking across modules). See `Examples/MultiNook/main.swift`
+for the full pattern — a `NookModule` class with a typed `ServiceKey`-backed
+dependency, three modules with per-module top-bar identity, and the
+closure-registration shortcut for the simpler ones.
 
 ## Licensing
 
