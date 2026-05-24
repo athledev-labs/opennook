@@ -1,0 +1,150 @@
+/* OpenNook docs theme: cream paper, calm ink, Geist typography.
+   These overrides re-color the Starlight defaults so the docs chrome
+   reads as a sibling of the landing page. */
+
+:root,
+[data-theme='light'] {
+  --sl-color-bg:           #f3f0e8;
+  --sl-color-bg-nav:       #f0ecdf;
+  --sl-color-bg-sidebar:   #f3f0e8;
+  --sl-color-bg-inline-code: #ede9dc;
+  --sl-color-hairline:     rgba(10, 10, 10, 0.08);
+  --sl-color-hairline-light: rgba(10, 10, 10, 0.05);
+  --sl-color-hairline-shade: rgba(10, 10, 10, 0.06);
+
+  --sl-color-text:         #1a1a1a;
+  --sl-color-text-accent:  #0a0a0a;
+  --sl-color-text-invert:  #f3f0e8;
+  --sl-color-white:        #0a0a0a;
+  --sl-color-gray-1:       #1f1f1f;
+  --sl-color-gray-2:       #2b2b2b;
+  --sl-color-gray-3:       #4a4a4a;
+  --sl-color-gray-4:       #6a6a6a;
+  --sl-color-gray-5:       #8a8a8a;
+  --sl-color-gray-6:       #a8a8a8;
+  --sl-color-gray-7:       #cfcfc7;
+
+  --sl-color-accent:       #0a0a0a;
+  --sl-color-accent-low:   rgba(10, 10, 10, 0.08);
+  --sl-color-accent-high:  #0a0a0a;
+}
+
+[data-theme='dark'] {
+  --sl-color-bg:           #0c0c0c;
+  --sl-color-bg-nav:       #0a0a0a;
+  --sl-color-bg-sidebar:   #0c0c0c;
+  --sl-color-bg-inline-code: #1a1a1a;
+  --sl-color-hairline:     rgba(240, 238, 230, 0.08);
+  --sl-color-hairline-light: rgba(240, 238, 230, 0.05);
+  --sl-color-hairline-shade: rgba(240, 238, 230, 0.06);
+
+  --sl-color-text:         #ece9df;
+  --sl-color-text-accent:  #ffffff;
+  --sl-color-text-invert:  #0a0a0a;
+
+  --sl-color-accent:       #ece9df;
+  --sl-color-accent-low:   rgba(236, 233, 223, 0.08);
+  --sl-color-accent-high:  #ffffff;
+}
+
+:root {
+  --sl-font:        'Geist', ui-sans-serif, -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
+  --sl-font-system: var(--sl-font);
+  --sl-font-system-mono: 'Geist Mono', ui-monospace, 'SF Mono', Menlo, Consolas, monospace;
+
+  --sl-text-h1: 2.25rem;
+  --sl-text-h2: 1.5rem;
+  --sl-text-h3: 1.175rem;
+  --sl-text-h4: 1rem;
+  --sl-line-height: 1.65;
+}
+
+html { background: var(--sl-color-bg); }
+body { font-feature-settings: 'ss01', 'ss03'; -webkit-font-smoothing: antialiased; }
+
+/* Calmer top nav: no heavy border, slimmer chrome. */
+header.header {
+  border-bottom: 1px solid var(--sl-color-hairline);
+  background: var(--sl-color-bg-nav);
+  backdrop-filter: saturate(120%);
+}
+
+/* Sidebar: lighter weight, tighter spacing. */
+.sidebar-pane {
+  background: var(--sl-color-bg-sidebar);
+  border-right: 1px solid var(--sl-color-hairline);
+}
+.sidebar ul li a {
+  font-size: 13.5px;
+  letter-spacing: -0.005em;
+}
+.sidebar ul li a[aria-current='page'] {
+  font-weight: 600;
+  color: var(--sl-color-text-accent);
+  background: var(--sl-color-accent-low);
+}
+
+/* Page headings: tighter tracking, weightier display, calmer color. */
+.sl-markdown-content h1,
+.sl-markdown-content h2,
+.sl-markdown-content h3 {
+  letter-spacing: -0.025em;
+  color: var(--sl-color-text-accent);
+}
+.sl-markdown-content h1 {
+  font-weight: 600;
+  font-size: clamp(1.9rem, 3vw, 2.4rem);
+  margin-block-end: 0.4em;
+}
+.sl-markdown-content h2 {
+  font-weight: 600;
+  margin-block-start: 2.6em;
+  margin-block-end: 0.6em;
+}
+
+/* Body copy: comfortable measure, calmer ink, no auto-justified weirdness. */
+.sl-markdown-content { max-width: 68ch; }
+.sl-markdown-content p,
+.sl-markdown-content li {
+  font-size: 15.5px;
+  line-height: 1.7;
+  color: var(--sl-color-text);
+}
+
+/* Links: matte underline, no electric purple. */
+.sl-markdown-content a:not(.not-content a) {
+  color: var(--sl-color-text-accent);
+  text-decoration: underline;
+  text-decoration-thickness: 1px;
+  text-underline-offset: 3px;
+  text-decoration-color: var(--sl-color-hairline);
+  transition: text-decoration-color 160ms ease;
+}
+.sl-markdown-content a:not(.not-content a):hover {
+  text-decoration-color: var(--sl-color-text-accent);
+}
+
+/* Inline code: subtle background, no neon highlight. */
+.sl-markdown-content :not(pre) > code {
+  background: var(--sl-color-bg-inline-code);
+  border: 1px solid var(--sl-color-hairline);
+  padding: 0.12em 0.4em;
+  border-radius: 4px;
+  font-size: 0.92em;
+}
+
+/* Code blocks: charcoal panel with cream text - same direction as the
+   landing notch surface so blocks read as little nooks. */
+.expressive-code, .expressive-code .frame {
+  --ec-brdRad: 14px;
+  --ec-brdCol: rgba(10, 10, 10, 0.1);
+  --ec-frm-edBg: #0a0a0a;
+  --ec-frm-edTabBarBg: #050505;
+  --ec-frm-edTabBarBrdCol: rgba(240, 238, 230, 0.08);
+  --ec-frm-edActTabBg: #0a0a0a;
+  --ec-frm-edActTabFg: #f0eee6;
+}
+
+/* Footer / page-meta calm. */
+footer { border-top: 1px solid var(--sl-color-hairline); }
+.meta { color: var(--sl-color-gray-4); }

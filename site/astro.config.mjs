@@ -4,26 +4,32 @@ import starlight from '@astrojs/starlight';
 
 // https://astro.build/config
 export default defineConfig({
+  site: 'https://opennook.dev',
   integrations: [
     starlight({
       title: 'OpenNook',
       description: 'An open-source framework for building macOS notch apps.',
-      social: [
-        {
-          icon: 'github',
-          label: 'GitHub',
-          href: 'https://github.com/glendonC/opennook',
-        },
-      ],
+      social: {
+        github: 'https://github.com/glendonC/opennook',
+      },
       defaultLocale: 'en',
-      // Dark mode by default; users can still toggle to light.
-      // Starlight uses `prefers-color-scheme` by default; pin to dark.
-      // The `head` injection sets the initial theme attribute.
+      customCss: ['./src/styles/custom.css'],
       head: [
         {
-          tag: 'script',
-          content:
-            "try { if (!localStorage.getItem('starlight-theme')) { document.documentElement.dataset.theme = 'dark'; } } catch (e) {}",
+          tag: 'link',
+          attrs: { rel: 'preconnect', href: 'https://fonts.googleapis.com' },
+        },
+        {
+          tag: 'link',
+          attrs: { rel: 'preconnect', href: 'https://fonts.gstatic.com', crossorigin: '' },
+        },
+        {
+          tag: 'link',
+          attrs: {
+            rel: 'stylesheet',
+            href:
+              'https://fonts.googleapis.com/css2?family=Geist:wght@300..700&family=Geist+Mono:wght@400;500&display=swap',
+          },
         },
       ],
       sidebar: [

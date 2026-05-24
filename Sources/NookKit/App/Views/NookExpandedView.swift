@@ -108,6 +108,10 @@ public struct NookExpandedView: View {
         .padding(NookLayout.edgePadding)
         .environment(\.nookResolvedTheme, resolvedTheme)
         .environment(\.appServices, services)
+        // Expose `AppState` to the host-registered `home` surface so it can observe
+        // chrome-level state (e.g. `isDragInFlight`) without each closure needing a
+        // bespoke parameter.
+        .environmentObject(appState)
         // The nook lives on a `.nonactivatingPanel` so opening it never steals focus from
         // the user's editor. Side effect: until the user clicks the surface, AppKit
         // desaturates accent-tinted controls. Forcing `.active` makes the chrome paint as
