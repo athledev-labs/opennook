@@ -4,13 +4,192 @@ description: An ambient volume indicator in the compact pill.
 ---
 
 `SystemVolumeObserver` tracks the default output device's volume and mute
-state via public CoreAudio APIs. `NookVolumeIndicator` renders it as a
-compact-slot glyph. It shows the level - it does not intercept or replace
-Apple's volume HUD. It lives in the `NookComponents` product.
+state through public CoreAudio APIs. `NookVolumeIndicator` renders the level
+as a compact-slot glyph. Both live in the `NookComponents` product, so
+depend on that alongside `NookApp`.
 
-See `Examples/VolumeNook/main.swift` in the repo for the working pattern.
+The volume glyph is *ambient* - it shows the level continuously while the
+nook is collapsed. It does not intercept or replace Apple's volume HUD.
 
-:::note[TODO]
-Full guide pending - device switching, mute behavior, and multi-channel
-handling deserve their own section.
-:::
+## When to use it
+
+- You want a glanceable volume indicator next to the notch, visible while
+  the nook is collapsed.
+- You want the indicator to follow whatever output the user is on - built-in
+  speakers, headphones, an external interface - without writing the
+  device-switch plumbing yourself.
+
+If you want a *takeover* on volume change (the HUD style), use a transient
+activity instead via the [Activity queue](/guides/activity-queue/) - the
+volume glyph is the persistent-glance counterpart.
+
+## Minimal setup
+
+```swift
+import NookApp
+import NookComponents
+import SwiftUI
+
+NookApp.main {
+    let volume = SystemVolumeObserver()
+
+    var configuration = NookConfiguration()
+    configuration.setCompactTrailing { NookVolumeIndicator(observer: volume) }
+    return configuration
+}
+```
+
+`NookApp.main { ... }` runs on the main actor, which is where the
+`@MainActor`-isolated `SystemVolumeObserver` must be constructed. Register
+the indicator in either compact slot - `setCompactTrailing` puts it to the
+right of the notch, `setCompactLeading` to the left.
+
+The full working example is at `Examples/VolumeNook/main.swift`.
+
+## Key types
+
+### `SystemVolumeObserver`
+
+The observable model. Builds on public CoreAudio property listeners only - no
+private API, no special entitlement, App Store-safe. Exposes two
+`@Published` values:
+
+```swift
+@Published public private(set) var volume: Double   // 0...1, clamped
+@Published public private(set) var isMuted: Bool
+```
+
+`@MainActor`-isolated. CoreAudio listener callbacks arrive on an arbitrary
+queue; the observer hops to the main actor before touching state.
+
+### `NookVolumeIndicator`
+
+The view. Renders an SF Symbol picked from the level and mute state, tinted
+by `\.nookResolvedTheme.primaryLabel`. Drop it into a compact slot:
+
+```swift
+configuration.setCompactTrailing { NookVolumeIndicator(observer: volume) }
+```
+
+The symbol mapping is exposed as a `public static` so you can preview it
+without a live audio device:
+
+```swift
+NookVolumeIndicator.symbolName(volume: 0.42, isMuted: false)
+// -> "speaker.wave.2.fill"
+```
+
+Breakpoints:
+
+- `isMuted == true` -> `speaker.slash.fill`
+- volume `< 0.01` -> `speaker.fill` (silent but not muted)
+- volume `< 0.34` -> `speaker.wave.1.fill`
+- volume `< 0.67` -> `speaker.wave.2.fill`
+- otherwise -> `speaker.wave.3.fill`
+
+## Device switching
+
+The observer follows the *default output device*, not a fixed one. When the
+default changes - the user plugs in headphones, switches output in Control
+Center, an external interface drops - a CoreAudio listener fires and the
+observer rebinds: it removes its volume/mute listeners from the old device,
+attaches them to the new one, and refreshes `volume` and `isMuted` from the
+new device. Your view updates automatically.
+
+If no output device is available at all, `volume` is `0` and `isMuted` is
+`false`. The observer stays attached to the system-level default-device
+listener so it will rebind when one appears.
+
+## Mute behavior
+
+`isMuted` reflects the device's CoreAudio mute property when the device
+exposes one. Some devices don't - an external interface that handles mute in
+hardware, for example - in which case `isMuted` stays `false` and only the
+volume scalar moves.
+
+The indicator chooses `speaker.slash.fill` for `isMuted == true` regardless
+of level - a muted device at `volume = 0.7` reads as muted, not "high
+volume." Pure-zero volume on a non-muted device is `speaker.fill` (the
+no-waves glyph) to distinguish "audio off because muted" from "audio off
+because the slider is at zero."
+
+## Multi-channel devices
+
+CoreAudio exposes volume two ways: a single *main-element* scalar, or only
+*per-channel* scalars (one per output channel). Stereo built-in speakers
+typically have the main scalar; multi-channel devices - 5.1, 7.1, pro audio
+interfaces - often do not.
+
+The reader handles both:
+
+1. Read the main-element scalar if the device has one.
+2. Otherwise, enumerate the device's actual output streams and average every
+   per-channel scalar that resolved.
+
+The per-channel pass uses the device's real channel count, so a 5.1 device's
+center / LFE / rear channels are included in the average rather than
+stereo-clipped. If both fail (no main scalar, no resolvable channels), the
+reader returns `nil` and the observer leaves its last `volume` value in
+place.
+
+The fallback is exposed as a pure function for testing:
+
+```swift
+resolveVolumeFallback(mainScalar: nil, channelScalars: [0.4, 0.6])
+// -> 0.5
+```
+
+## Injecting a reader (testing)
+
+`SystemVolumeObserver` takes a `VolumeReading` protocol, defaulting to
+`CoreAudioVolumeReader()`. A fake makes the device-switch, volume-fallback,
+and mute paths testable without a live device:
+
+```swift
+struct FakeReader: VolumeReading {
+    func defaultOutputDevice() -> AudioDeviceID? { 42 }
+    func readVolume(_ device: AudioDeviceID) -> Double? { 0.5 }
+    func readMute(_ device: AudioDeviceID) -> Bool { false }
+}
+
+let observer = SystemVolumeObserver(reader: FakeReader())
+```
+
+Production code can almost always leave the default reader in place.
+
+## Pitfalls
+
+### Construct on the main actor
+
+`SystemVolumeObserver` is `@MainActor`-isolated. The `NookApp.main { ... }`
+builder runs on the main actor, so constructing the observer inside the
+closure is the ergonomic path. Outside that builder, hop to the main actor
+first.
+
+### Not an HUD
+
+The indicator shows the level continuously - it is not a takeover. If you
+want a per-change takeover (a notch HUD style), enqueue a transient activity
+from a publisher on the observer's `volume` instead:
+
+```swift
+observer.$volume
+    .removeDuplicates()
+    .sink { level in queue.enqueue(volumeActivity(level: level)) }
+    .store(in: &cancellables)
+```
+
+### Don't double-listen
+
+Construct one `SystemVolumeObserver` per host and share the reference across
+the views that need it. Each instance registers its own CoreAudio listeners,
+and although the observer balances add/remove correctly on teardown, two
+observers means twice the work for no benefit.
+
+## See also
+
+- `Examples/VolumeNook/main.swift` - the working pattern this guide mirrors.
+- [Activity queue](/guides/activity-queue/) - the transient-takeover
+  counterpart to this ambient glyph.
+- `Sources/NookComponents/Volume/` - the observer and indicator sources,
+  including the CoreAudio reader and the multi-channel fallback.

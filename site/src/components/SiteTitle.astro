@@ -1,0 +1,46 @@
+---
+const siteTitle = 'OpenNook';
+---
+
+<a href="/" class="site-title sl-flex">
+  <svg
+    class="site-title__mark"
+    width="16"
+    height="16"
+    viewBox="0 0 24 24"
+    fill="none"
+    stroke="currentColor"
+    stroke-width="1.6"
+    stroke-linecap="round"
+    stroke-linejoin="round"
+    aria-hidden="true"
+  >
+    <path d="M9.94 14.32 12 2l2.06 12.32" />
+    <path d="M12 2v7" />
+    <path d="M6.53 17.11 12 22l5.47-4.89" />
+    <path d="M8.5 14.5 12 22l3.5-7.5" />
+  </svg>
+  <span translate="no">{siteTitle}</span>
+</a>
+
+<style>
+  .site-title {
+    align-items: center;
+    gap: 0.55rem;
+    font-size: 0.9375rem;
+    font-weight: 600;
+    letter-spacing: -0.02em;
+    color: var(--sl-color-text-accent);
+    text-decoration: none;
+    white-space: nowrap;
+  }
+
+  .site-title:hover {
+    opacity: 0.82;
+  }
+
+  .site-title__mark {
+    flex: 0 0 auto;
+    opacity: 0.88;
+  }
+</style>

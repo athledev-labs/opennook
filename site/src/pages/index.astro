@@ -1,6 +1,7 @@
 ---
 const repoUrl = 'https://github.com/glendonC/opennook';
 const docsUrl = '/start/introduction/';
+import '../styles/tokens.css';
 const carouselLines = [
   'Hover to expand',
   'Framework chrome preview',
@@ -447,12 +448,6 @@ const carouselLines = [
 
     <style is:global>
       :root {
-        --page-bg: #f3f0e8;
-        --ink: #0a0a0a;
-        --ink-muted: rgba(10, 10, 10, 0.58);
-        --ink-faint: rgba(10, 10, 10, 0.36);
-        --page-glow-a: rgba(255, 255, 255, 0.55);
-        --page-glow-b: rgba(10, 10, 10, 0.025);
         --notch: #050505;
         --notch-text: #f0eee6;
         --notch-text-soft: rgba(240, 238, 230, 0.6);
@@ -473,10 +468,6 @@ const carouselLines = [
         --stage-radius: clamp(28px, 4.5vw, 48px);
 
         --ease-spring: cubic-bezier(0.32, 0.72, 0, 1);
-        --ease-out: cubic-bezier(0.16, 1, 0.3, 1);
-
-        --font-sans: 'Geist', ui-sans-serif, -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
-        --font-mono: 'Geist Mono', ui-monospace, 'SF Mono', Menlo, Consolas, monospace;
       }
 
       *, *::before, *::after { box-sizing: border-box; }
@@ -497,21 +488,11 @@ const carouselLines = [
       }
 
       html[data-palette='light'] {
-        --page-bg: #f3f0e8;
-        --ink: #0a0a0a;
-        --ink-muted: rgba(10, 10, 10, 0.58);
-        --ink-faint: rgba(10, 10, 10, 0.36);
-        --page-glow-a: rgba(255, 255, 255, 0.55);
-        --page-glow-b: rgba(10, 10, 10, 0.025);
+        color-scheme: light;
       }
 
       html[data-palette='dark'] {
-        --page-bg: #0c0c0c;
-        --ink: #f0eee6;
-        --ink-muted: rgba(240, 238, 230, 0.58);
-        --ink-faint: rgba(240, 238, 230, 0.36);
-        --page-glow-a: rgba(255, 255, 255, 0.04);
-        --page-glow-b: rgba(0, 0, 0, 0.2);
+        color-scheme: dark;
       }
 
       .nook-host[data-palette='light'] {

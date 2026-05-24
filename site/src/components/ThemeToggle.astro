@@ -1,0 +1,121 @@
+---
+---
+
+<starlight-theme-select class="theme-toggle" role="group" aria-label="Theme">
+  <button type="button" class="theme-toggle__btn" data-theme-value="light" aria-label="Light theme">
+    <svg width="14" height="14" viewBox="0 0 24 24" fill="currentColor" aria-hidden="true">
+      <path d="M5 12a1 1 0 0 0-1-1H3a1 1 0 0 0 0 2h1a1 1 0 0 0 1-1Zm.64 5-.71.71a1 1 0 0 0 0 1.41 1 1 0 0 0 1.41 0l.71-.71A1 1 0 0 0 5.64 17ZM12 5a1 1 0 0 0 1-1V3a1 1 0 0 0-2 0v1a1 1 0 0 0 1 1Zm5.66 2.34a1 1 0 0 0 .7-.29l.71-.71a1 1 0 1 0-1.41-1.41l-.66.71a1 1 0 0 0 0 1.41 1 1 0 0 0 .66.29Zm-12-.29a1 1 0 0 0 1.41 0 1 1 0 0 0 0-1.41l-.71-.71a1.004 1.004 0 1 0-1.43 1.41l.73.71ZM21 11h-1a1 1 0 0 0 0 2h1a1 1 0 0 0 0-2Zm-2.64 6A1 1 0 0 0 17 18.36l.71.71a1 1 0 0 0 1.41 0 1 1 0 0 0 0-1.41l-.76-.66ZM12 6.5a5.5 5.5 0 1 0 5.5 5.5A5.51 5.51 0 0 0 12 6.5Zm0 9a3.5 3.5 0 1 1 0-7 3.5 3.5 0 0 1 0 7Zm0 3.5a1 1 0 0 0-1 1v1a1 1 0 0 0 2 0v-1a1 1 0 0 0-1-1Z" />
+    </svg>
+  </button>
+  <button type="button" class="theme-toggle__btn" data-theme-value="dark" aria-label="Dark theme">
+    <svg width="14" height="14" viewBox="0 0 24 24" fill="currentColor" aria-hidden="true">
+      <path d="M21.64 13a1 1 0 0 0-1.05-.14 8.05 8.05 0 0 1-3.37.73 8.15 8.15 0 0 1-8.14-8.1 8.59 8.59 0 0 1 .25-2A1 1 0 0 0 8 2.36a10.14 10.14 0 1 0 12.53 11.1 1 1 0 0 0-.89-1.46Z" />
+    </svg>
+  </button>
+  <button type="button" class="theme-toggle__btn" data-theme-value="auto" aria-label="System theme">
+    <svg width="14" height="14" viewBox="0 0 24 24" fill="currentColor" aria-hidden="true">
+      <path d="M4 5a2 2 0 0 1 2-2h12a2 2 0 0 1 2 2v7H4V5Zm0 9v5a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2v-5H4Zm14-7H6v3h12V7Z" />
+    </svg>
+  </button>
+</starlight-theme-select>
+
+<script is:inline>
+  StarlightThemeProvider.updatePickers();
+</script>
+
+<script>
+  type Theme = 'auto' | 'dark' | 'light';
+
+  const storageKey = 'starlight-theme';
+
+  const parseTheme = (theme: unknown): Theme =>
+    theme === 'auto' || theme === 'dark' || theme === 'light' ? theme : 'auto';
+
+  const loadTheme = (): Theme =>
+    parseTheme(typeof localStorage !== 'undefined' && localStorage.getItem(storageKey));
+
+  function storeTheme(theme: Theme): void {
+    if (typeof localStorage !== 'undefined') {
+      localStorage.setItem(storageKey, theme === 'light' || theme === 'dark' ? theme : '');
+    }
+  }
+
+  const getPreferredColorScheme = (): Theme =>
+    matchMedia('(prefers-color-scheme: light)').matches ? 'light' : 'dark';
+
+  function setActiveButton(root: HTMLElement, theme: Theme) {
+    root.querySelectorAll('[data-theme-value]').forEach((btn) => {
+      if (!(btn instanceof HTMLButtonElement)) return;
+      btn.classList.toggle('is-active', btn.dataset.themeValue === theme);
+      btn.setAttribute('aria-pressed', btn.dataset.themeValue === theme ? 'true' : 'false');
+    });
+  }
+
+  function onThemeChange(theme: Theme): void {
+    StarlightThemeProvider.updatePickers(theme);
+    document.documentElement.dataset.theme = theme === 'auto' ? getPreferredColorScheme() : theme;
+    storeTheme(theme);
+  }
+
+  matchMedia('(prefers-color-scheme: light)').addEventListener('change', () => {
+    if (loadTheme() === 'auto') onThemeChange('auto');
+  });
+
+  class StarlightThemeSelect extends HTMLElement {
+    constructor() {
+      super();
+      const theme = loadTheme();
+      onThemeChange(theme);
+      setActiveButton(this, theme);
+
+      this.querySelectorAll('[data-theme-value]').forEach((btn) => {
+        btn.addEventListener('click', () => {
+          if (!(btn instanceof HTMLButtonElement)) return;
+          const next = parseTheme(btn.dataset.themeValue);
+          onThemeChange(next);
+          setActiveButton(this, next);
+        });
+      });
+    }
+  }
+
+  customElements.define('starlight-theme-select', StarlightThemeSelect);
+</script>
+
+<style>
+  .theme-toggle {
+    display: inline-flex;
+    align-items: center;
+    gap: 1px;
+    padding: 1px;
+    border: 1px solid var(--on-control-border);
+    border-radius: var(--on-radius-md);
+    background: transparent;
+  }
+
+  .theme-toggle__btn {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    width: 1.75rem;
+    height: 1.75rem;
+    padding: 0;
+    border: 0;
+    border-radius: calc(var(--on-radius-md) - 2px);
+    background: transparent;
+    color: var(--on-ink-muted);
+    cursor: pointer;
+    transition:
+      color 160ms var(--on-ease-out),
+      background-color 160ms var(--on-ease-out);
+  }
+
+  .theme-toggle__btn:hover {
+    color: var(--sl-color-text-accent);
+  }
+
+  .theme-toggle__btn.is-active {
+    color: var(--sl-color-text-accent);
+    background: var(--sl-color-accent-low);
+  }
+</style>

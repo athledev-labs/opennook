@@ -12,8 +12,15 @@ export default defineConfig({
       social: {
         github: 'https://github.com/glendonC/opennook',
       },
+      editLink: { baseUrl: undefined },
+      lastUpdated: false,
       defaultLocale: 'en',
       customCss: ['./src/styles/custom.css'],
+      components: {
+        Header: './src/components/Header.astro',
+        SiteTitle: './src/components/SiteTitle.astro',
+        ThemeSelect: './src/components/ThemeToggle.astro',
+      },
       head: [
         {
           tag: 'link',

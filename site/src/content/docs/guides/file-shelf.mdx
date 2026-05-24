@@ -4,15 +4,181 @@ description: A drop-files-on-the-notch shelf component.
 ---
 
 The shelf lets users drop files onto the notch; they collect in a persistent
-`ShelfStore` and can be dragged back out. It lives in the `NookComponents`
-product, so depend on that product when you want it. Render it with
-`NookShelfView` and wire `ShelfStore.accept` into
-`NookConfiguration.onFileDrop`.
+`ShelfStore` and can be dragged back out to Finder or another app. It lives in
+the `NookComponents` product - so add a dependency on that product when you
+want it, alongside `NookApp`.
 
-See `Examples/ShelfNook/main.swift` in the repo for the working pattern,
-including how the shelf detects the App Sandbox at runtime
-(`ShelfRuntime.isSandboxed`) and switches to a stricter acceptance mode.
+## When to use it
 
-:::note[TODO]
-Full guide pending. For now, the example file is the source of truth.
-:::
+- You want a quick "park this file somewhere I can grab later" surface.
+- You want drops to land in a persistent place that survives a relaunch
+  rather than triggering a one-shot import.
+- You want drag-out from the notch back to other apps without writing the
+  promise plumbing yourself.
+
+If you only want to *handle* file drops - kick off an import, run a script,
+add a row to your own model - skip the shelf and just wire
+`NookConfiguration.onFileDrop`. The shelf is one consumer of that hook, not
+the only one.
+
+## Minimal setup
+
+```swift
+import NookApp
+import NookComponents
+import SwiftUI
+
+NookApp.main {
+    let shelf = ShelfStore()
+
+    var configuration = NookConfiguration()
+    configuration.setHome { NookShelfView(store: shelf) }
+    configuration.onFileDrop = { urls in shelf.accept(urls) }
+    return configuration
+}
+```
+
+`NookApp.main { ... }` builds the configuration on the main actor, which is
+where the `@MainActor`-isolated `ShelfStore` must be constructed. Wire
+`ShelfStore.accept` into `NookConfiguration.onFileDrop` so dropped files reach
+the store; render the shelf with `NookShelfView`. That's the whole minimal
+integration.
+
+The full working example is at `Examples/ShelfNook/main.swift`.
+
+## Key types
+
+### `ShelfStore`
+
+The observable model. Persists itself as encoded bookmarks under a
+`UserDefaults` key (`"nook.shelf.items"` by default) and reloads on the next
+launch, healing stale bookmarks and dropping items whose files have genuinely
+disappeared.
+
+```swift
+public init(
+    persistenceKey: String = "nook.shelf.items",
+    defaults: UserDefaults = .standard,
+    acceptanceMode: AcceptanceMode = .lenient
+)
+```
+
+The store exposes:
+
+- `items: [ShelfItem]` - oldest first.
+- `accept(_ urls: [URL]) -> Bool` - the drop sink. Returns `true` when at
+  least one file was admitted, which is exactly the shape
+  `NookConfiguration.onFileDrop` wants. Skips files already on the shelf
+  (compared by resolved path).
+- `remove(_:)` / `remove(id:)` / `clear()` - removal API. The chip view uses
+  these via its hover-revealed remove button.
+- `purgeMissing()` - drops items whose underlying file is genuinely gone. The
+  store calls this for you on `init`; call it again yourself if you want to
+  reconcile after the shelf surface re-appears.
+
+In a multi-module host, pass the active module's isolated suite so two
+modules can't collide on shelf keys:
+
+```swift
+let shelf = ShelfStore(defaults: context.defaults)
+```
+
+### `NookShelfView`
+
+The surface. Renders an empty-state prompt when the store is empty, otherwise
+a horizontal row of file chips with a header and a Clear button. Each chip
+shows the file icon and name, supports drag-out via a file-promise drag
+source, and reveals a remove button on hover. Tints come from
+`\.nookResolvedTheme`, so the shelf inherits whatever palette the host
+configured.
+
+### `ShelfRuntime`
+
+Small capability probes. The only one most hosts care about:
+
+```swift
+ShelfRuntime.isSandboxed   // true under the App Sandbox
+```
+
+The store consults this internally; you only read it directly if you are
+making your own sandbox-aware decisions on top of the shelf.
+
+## Sandbox behavior
+
+The shelf works under the App Sandbox and outside it - but a drop's
+durability depends on whether the framework can capture a *scoped* bookmark
+for the file. The store records the kind of bookmark it captured per item and
+uses that to make purge and resolve decisions correctly.
+
+`ShelfStore.AcceptanceMode` lets you pick how strict to be on capture:
+
+- `.lenient` (the default). Accept any drop. Under the App Sandbox, a
+  non-scoped capture is preserved across the current session but will not
+  resolve in a future launch. The store logs one diagnostic per process the
+  first time this happens (search `log show` for the subsystem
+  `dev.opennook.shelf`).
+- `.strict`. Under the App Sandbox, drop any item whose scoped bookmark
+  capture failed. Use this when you'd rather a drop visibly fail than land in
+  a state that won't survive a relaunch.
+
+```swift
+let shelf = ShelfStore(acceptanceMode: .strict)
+```
+
+On reload, the store drops a `.scoped` item only when at least one other
+`.scoped` item on the shelf *did* resolve in this launch. If every resolution
+fails - indistinguishable from a sandboxed host that lost its grants entirely
+- nothing is purged; the shelf is preserved for a future launch that can
+resolve. `.nonScoped` and `.unknown` items are never purged on resolution
+failure for the same reason.
+
+You don't need to write any of this logic - it is all in
+`ShelfStore.loadAndReconcile` and `purgeMissing`. The point of mentioning it
+is that a sandboxed shelf that looks "empty" after a relaunch is usually a
+lost grant rather than data loss, and the store is designed not to compound
+the loss by deleting the records.
+
+## Drag-out
+
+`NookShelfView` registers a file-promise drag source on every chip. The
+promise model is what makes drag-out work from the notch's non-activating
+panel: receivers that demand file promises (some Finder paths, some sandboxed
+sinks) get them, and the file copy only runs when the receiver requests data
+- with security scope held around it under the sandbox.
+
+You get this for free by rendering `NookShelfView`. If you build your own
+shelf surface you'll want to reach into `Sources/NookComponents/Shelf/` for
+the drag-source helper rather than re-implement the bracketing.
+
+## Pitfalls
+
+### Construct `ShelfStore` on the main actor
+
+`ShelfStore` is `@MainActor`-isolated. The `NookApp.main { ... }` builder
+runs on the main actor, so constructing the store inside the closure is the
+ergonomic path. If you assemble the configuration outside the builder, hop to
+the main actor first.
+
+### Don't forget the `onFileDrop` wire-up
+
+Constructing a `ShelfStore` and rendering `NookShelfView` is not enough on
+its own - the drop sink is `NookConfiguration.onFileDrop`. The default
+configuration leaves it `nil`, which rejects every drop. The one-liner
+`configuration.onFileDrop = { urls in shelf.accept(urls) }` is what connects
+them.
+
+### Sandboxed reload != data loss
+
+A sandboxed shelf can look empty on relaunch when the host has lost its
+scoped grants. That isn't a bug - the store deliberately preserves
+non-resolvable items so a later launch (or a re-add that promotes them to
+`.scoped`) can recover them. If you want a guarantee that drops either work
+durably or visibly fail at drop time, use `acceptanceMode: .strict`.
+
+## See also
+
+- `Examples/ShelfNook/main.swift` - the working pattern this guide mirrors.
+- [File drops on the chrome](/start/first-nook/#2-customize-via-nookconfiguration)
+  - the lifecycle hook the shelf consumes.
+- `Sources/NookComponents/Shelf/` - the component sources, including
+  `ShelfItem` and the drag-source helper.

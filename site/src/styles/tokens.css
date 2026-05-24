@@ -1,0 +1,78 @@
+/* OpenNook shared design tokens - landing + docs */
+
+:root,
+html[data-palette='light'],
+[data-theme='light'] {
+  --on-page-bg: #f3f0e8;
+  --on-page-bg-nav: #f3f0e8;
+  --on-ink: #0a0a0a;
+  --on-ink-muted: rgba(10, 10, 10, 0.58);
+  --on-ink-faint: rgba(10, 10, 10, 0.36);
+  --on-hairline: rgba(10, 10, 10, 0.08);
+  --on-hairline-strong: rgba(10, 10, 10, 0.14);
+  --on-surface: #0a0a0a;
+  --on-surface-deep: #050505;
+  --on-surface-text: #f0eee6;
+  --on-surface-text-soft: rgba(240, 238, 230, 0.6);
+  --on-page-glow-a: rgba(255, 255, 255, 0.55);
+  --on-page-glow-b: rgba(10, 10, 10, 0.025);
+  --on-page-ambient-a: rgba(110, 150, 210, 0.14);
+  --on-page-ambient-b: rgba(210, 130, 90, 0.1);
+  --on-page-ambient-c: rgba(255, 255, 255, 0.28);
+  --on-control-bg: rgba(255, 255, 255, 0.55);
+  --on-control-border: rgba(10, 10, 10, 0.12);
+  --on-control-border-hover: rgba(10, 10, 10, 0.32);
+  --on-inline-code-bg: #ede9dc;
+  --on-aside-bg: rgba(10, 10, 10, 0.04);
+  --on-aside-border: rgba(10, 10, 10, 0.18);
+  --on-aside-text: #0a0a0a;
+  --on-backdrop: rgba(10, 10, 10, 0.42);
+}
+
+html[data-palette='dark'],
+[data-theme='dark'] {
+  --on-page-bg: #0c0c0c;
+  --on-page-bg-nav: #0c0c0c;
+  --on-ink: #f0eee6;
+  --on-ink-muted: rgba(240, 238, 230, 0.58);
+  --on-ink-faint: rgba(240, 238, 230, 0.36);
+  --on-hairline: rgba(240, 238, 230, 0.08);
+  --on-hairline-strong: rgba(240, 238, 230, 0.14);
+  --on-surface: #0a0a0a;
+  --on-surface-deep: #050505;
+  --on-surface-text: #f0eee6;
+  --on-surface-text-soft: rgba(240, 238, 230, 0.6);
+  --on-page-glow-a: rgba(255, 255, 255, 0.04);
+  --on-page-glow-b: rgba(0, 0, 0, 0.2);
+  --on-page-ambient-a: rgba(90, 130, 200, 0.1);
+  --on-page-ambient-b: rgba(200, 110, 70, 0.08);
+  --on-page-ambient-c: rgba(255, 255, 255, 0.03);
+  --on-control-bg: rgba(10, 10, 10, 0.35);
+  --on-control-border: rgba(240, 238, 230, 0.16);
+  --on-control-border-hover: rgba(240, 238, 230, 0.34);
+  --on-inline-code-bg: #1a1a1a;
+  --on-aside-bg: rgba(240, 238, 230, 0.04);
+  --on-aside-border: rgba(240, 238, 230, 0.18);
+  --on-aside-text: #f0eee6;
+  --on-backdrop: rgba(0, 0, 0, 0.62);
+}
+
+:root {
+  --on-font-sans: 'Geist', ui-sans-serif, -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
+  --on-font-mono: 'Geist Mono', ui-monospace, 'SF Mono', Menlo, Consolas, monospace;
+  --on-radius-sm: 4px;
+  --on-radius-md: 8px;
+  --on-radius-lg: 14px;
+  --on-ease-out: cubic-bezier(0.16, 1, 0.3, 1);
+
+  /* Landing aliases */
+  --page-bg: var(--on-page-bg);
+  --ink: var(--on-ink);
+  --ink-muted: var(--on-ink-muted);
+  --ink-faint: var(--on-ink-faint);
+  --page-glow-a: var(--on-page-glow-a);
+  --page-glow-b: var(--on-page-glow-b);
+  --font-sans: var(--on-font-sans);
+  --font-mono: var(--on-font-mono);
+  --ease-out: var(--on-ease-out);
+}

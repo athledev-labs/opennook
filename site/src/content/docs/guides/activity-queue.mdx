@@ -3,15 +3,254 @@ title: Activity queue
 description: A priority live-activity queue for the expanded surface.
 ---
 
-`NookActivityQueue` collects transient activities, orders them by priority,
-coalesces duplicates, and presents each by briefly taking over the expanded
-surface. It yields the surface whenever the user is engaging it. It lives
-in the `NookComponents` product. Bind it via `NookConfiguration.onReady`
-and render with `NookActivityHost`.
+`NookActivityQueue` collects transient activities - "build finished", "backup
+complete", "new message" - orders them by priority, coalesces duplicates, and
+presents each by briefly taking over the expanded surface. It lives in the
+`NookComponents` product, so depend on that alongside `NookApp`.
 
-See `Examples/ActivityNook/main.swift` in the repo for the working pattern.
+## When to use it
 
-:::note[TODO]
-Full guide pending - priority model, coalescing rules, and yield-on-engage
-behavior need their own write-up.
-:::
+- You need to *announce* something time-limited and then go back to whatever
+  was on screen.
+- You expect bursts: several activities arriving at once, of varying urgency,
+  some of which collapse into "latest wins".
+- You want to coexist with the user. If the user is hovering or has the nook
+  open, the queue should yield - not stomp on what they were doing.
+
+If you need a *permanent* glance (a clock, a volume meter), use a compact-slot
+view instead - the queue is for transient takeovers.
+
+## Minimal setup
+
+```swift
+import NookApp
+import NookComponents
+import SwiftUI
+
+NookApp.main {
+    let queue = NookActivityQueue()
+
+    var configuration = NookConfiguration()
+    configuration.setHome {
+        NookActivityHost(queue: queue) { MyNormalHomeView() }
+    }
+    configuration.onReady = { coordinator in
+        queue.bind(to: coordinator)
+    }
+    return configuration
+}
+```
+
+Three wires:
+
+1. Build a `NookActivityQueue` on the main actor (the builder closure runs
+   there).
+2. Wrap your normal home view in `NookActivityHost` so the queue's current
+   activity card replaces it during a takeover and falls back to your content
+   when idle.
+3. Bind the queue to the coordinator from `onReady` so the queue can drive
+   the surface.
+
+Then enqueue from anywhere on the main actor:
+
+```swift
+queue.enqueue(NookActivity(
+    priority: .normal,
+    title: "Build finished",
+    subtitle: "Debug \u{B7} 12.4s",
+    systemImage: "hammer",
+    tint: .green
+))
+```
+
+The full working example is at `Examples/ActivityNook/main.swift`. That
+example wraps the queue in a full `NookModule` so it can implement
+`prepareForSwitchAway` - the pattern any multi-module host needs (see below).
+
+## Key types
+
+### `NookActivity`
+
+The model. `Identifiable`, `Sendable`, and cheap to build:
+
+```swift
+public struct NookActivity: Identifiable, Sendable {
+    public let id: UUID
+    public var coalescingKey: String?
+    public var priority: NookActivityPriority   // .low / .normal / .high
+    public var title: String
+    public var subtitle: String?
+    public var systemImage: String?             // SF Symbol
+    public var tint: Color
+    public var dwell: Duration                  // default 2.4s
+}
+```
+
+### `NookActivityQueue`
+
+The driver. Holds `@Published current` (the activity on screen, or `nil`),
+`@Published pending` (the queue), and `@Published isSuspended`. It is
+`@MainActor`-isolated; all mutation happens on the main actor.
+
+```swift
+queue.enqueue(_:)              // add an activity
+queue.cancel(_:)               // remove a still-pending activity
+queue.cancelAll(coalescingKey:)
+queue.suspend() / resume()     // cooperative pause
+await queue.quiesce()          // hard teardown (joins + releases surface)
+```
+
+### `NookActivityHost`
+
+The home-view wrapper. Renders the default `NookActivityCard` while the queue
+has a `current`, your normal content otherwise. Reads
+`\.nookResolvedTheme` from the environment, so the card inherits your chrome
+palette without extra wiring.
+
+## Priority model
+
+`NookActivityPriority` is a three-step ordering:
+
+- `.low` - background cue. Ambient signal.
+- `.normal` - ordinary activity from the foreground module. The default.
+- `.high` - time-sensitive.
+
+When the queue is ready to present the next activity, it drains the highest
+priority first. Within a priority class, the queue keeps FIFO order: a `.normal`
+enqueued first goes on screen first, even if a second `.normal` arrives during
+its dwell. A `.high` that arrives while the queue is parked on a denied claim
+still preempts (the next dequeue pass picks it ahead of any `.normal`).
+
+Priority is also what gates a backgrounded module's claims. In a multi-module
+host, only a `.high` claim from a non-foreground module can take over the
+surface from the foreground one - lower priorities are denied at the arbiter.
+This is the seam that lets background modules surface their own urgent events
+without quietly stealing the surface for ambient ones.
+
+## Coalescing
+
+Set `coalescingKey` on activities that should "keep latest":
+
+```swift
+queue.enqueue(NookActivity(
+    coalescingKey: "build",
+    priority: .normal,
+    title: "Build finished",
+    subtitle: "Debug \u{B7} 12.4s"
+))
+```
+
+Enqueueing an activity with a non-`nil` key removes any **pending** peer that
+shares the key first. Coalescing only affects what is queued - an activity
+already on screen finishes its dwell and is replaced by the new one
+afterwards. `nil` (the default) means "never coalesce".
+
+Common shapes for the key:
+
+- A bare event identifier (`"build"`) for "show me the freshest build
+  result".
+- A composite (`"build:\(target)"`) for "freshest result *per target*".
+
+`cancelAll(coalescingKey:)` is the manual companion: drop everything pending
+under a given key without enqueuing a replacement.
+
+## Yield to the user
+
+The queue does not fight the user for the surface. Every drain iteration
+checks whether the user is engaged - hovering the nook, or having opened it
+themselves - and parks if so. The poll interval is 200 ms, so a disengaged
+user sees the next activity without a perceptible gap.
+
+This is *yield*, not preempt. The queue:
+
+- Waits to *take* the surface while the user is engaged.
+- Does not interrupt a takeover the user starts mid-dwell - the running
+  activity finishes its dwell, but no new claim is made while the user stays
+  engaged.
+
+Cooperative pause vs hard teardown:
+
+- `suspend()` pauses *new* takeovers. An activity already on screen finishes
+  its dwell and releases its surface claim normally; the engagement-yield
+  poll exits on the next tick. Pair with `resume()`.
+- `await quiesce()` does suspend plus *await* - the drain task fully unwinds
+  and any held surface token is released before this returns. Use this when
+  you need to *prove* the queue is no longer touching the surface (module
+  switch-away, queue destruction). Idempotent.
+
+## Module switch-away: the quiesce contract
+
+A module that owns a `NookActivityQueue` must drain it before being switched
+away, or its dangling surface claim can outlive the switch. The framework
+gives you exactly one seam for this: `NookModule.prepareForSwitchAway`.
+
+```swift
+@MainActor
+final class ActivityModule: NookModule {
+    private let queue = NookActivityQueue()
+
+    func makeConfiguration() -> NookConfiguration {
+        var configuration = NookConfiguration()
+        configuration.setHome { NookActivityHost(queue: self.queue) { ActivityNookHome() } }
+        configuration.onReady = { [queue, descriptor] coordinator in
+            queue.bind(to: coordinator, moduleID: descriptor.id)
+        }
+        return configuration
+    }
+
+    func prepareForSwitchAway() async {
+        await queue.quiesce()
+    }
+}
+```
+
+A few details that matter:
+
+- Pass the module's descriptor id to `bind(to:moduleID:)` in a multi-module
+  host. The queue stamps it onto every claim so the arbiter can gate a
+  background module's activities correctly. A single-module host can omit it -
+  the queue falls back to the active module at bind time.
+- `prepareForSwitchAway` is async; `onDeactivate` is synchronous. Use the
+  async seam when you need to *join* in-flight work, the sync seam for cheap
+  cleanup (timers, observers).
+- The framework bounds `prepareForSwitchAway` to a 2-second timeout. The
+  surface arbiter already treats the outgoing module's claims as stale, so a
+  misbehaving drain can't strand the user-visible switch - but you should not
+  rely on this in normal code.
+
+See the [Multiple modules guide](/guides/multiple-modules/#the-module-switch-lifecycle)
+for the full switch sequence.
+
+## Pitfalls
+
+### Don't preempt an in-flight activity by priority
+
+`.high` does not interrupt a `.normal` that is already on screen - priority
+orders only what is still pending. If you absolutely need to replace what's
+showing, cancel via id and let the drain pick the new one, or build a
+short-`dwell` activity so it ends quickly.
+
+### Hard teardown vs cooperative pause
+
+A `cancel()` on the drain task mid-dwell would skip the
+`endTransientPresentation` call and strand the arbiter claim until the next
+quiesce released it. `suspend()` is cooperative for this reason. Use
+`quiesce()` (not `suspend()`) when you mean "stop, and be done with the
+surface."
+
+### Multi-module hosts: stamp the right module id
+
+In a multi-module host, `bind(to: coordinator)` with no `moduleID` reads the
+*foreground* module at bind time. That is fine for a single-module host but
+can stamp the wrong identity onto claims if the binding happens while the
+owning module is in the background. Pass `moduleID: descriptor.id` explicitly
+from a module's `onReady`.
+
+## See also
+
+- `Examples/ActivityNook/main.swift` - the working module pattern (including
+  `prepareForSwitchAway`) this guide mirrors.
+- [Multiple modules](/guides/multiple-modules/) - the switch lifecycle the
+  quiesce contract plugs into.
+- `Sources/NookComponents/Activities/` - the queue, model, and host view
+  sources.
