@@ -10,30 +10,31 @@
 
 **An open-source framework for building macOS notch apps.**
 
+**Website:** [opennook.dev](https://opennook.dev) ·
+**Docs:** [Getting started](https://opennook.dev/start/introduction/)
+
 OpenNook gives you the hard part for free: a polished window that lives in the
 menu-bar notch, expands and collapses on hover, paints a proper frosted
-backdrop, and ships with a settings shell and a global hotkey. Drop your own
-SwiftUI view into the expanded surface and you have a notch app.
+backdrop, and ships with a settings shell and a global hotkey. Register your
+home view through `NookConfiguration`; the top bar, Settings, hotkey, and
+compact pill come for free. Optional `NookComponents` add-ons cover a file
+shelf, a live-activity queue, and an ambient volume glyph.
 
 It is a **base layer plus a working demo** - not a finished product. The demo
 app is intentionally minimal: it shows the framework off and gives you a
 known-good starting point to fork.
 
-```
-┌─────────────────────────────────────────────┐
-│                  ▁▁▁▁▁▁▁                     │   ← collapsed: compact slots
-│        ◖        │ notch │        ◗           │     flank the physical notch
-│                  ▔▔▔▔▔▔▔                     │
-└─────────────────────────────────────────────┘
-                      │ hover / ⌥⌘;
-                      ▼
-            ┌───────────────────────┐
-            │  ⌂          🔒    ⚙   │   ← expanded: top bar + your view
-            │                       │
-            │      ✨  Nook         │
-            │   Replace this view   │
-            └───────────────────────┘
-```
+![OpenNook expanded on macOS](docs/images/nook-expanded.png)
+
+![File shelf via NookComponents](docs/images/nook-shelf.png)
+
+Collapsed, the nook is a compact pill in the menu-bar notch (customizable
+leading/trailing slots). Hover to expand on desktop, or press **⌥⌘;** to
+toggle. Expanded, you get framework chrome (top bar, lock, settings) around
+the view you register. Layout follows the display: notch-fused on notched
+panels, floating capsule elsewhere (`NookPresentation`, overridable in
+Settings). The shelf above is from `Examples/ShelfNook` via optional
+`NookComponents`.
 
 ## What's inside
 

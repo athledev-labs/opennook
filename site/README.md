@@ -1,7 +1,7 @@
 # opennook-site
 
-The OpenNook documentation site. Astro 5 + Starlight, deployed to
-Cloudflare Pages.
+The OpenNook documentation site. Astro 5 + Starlight, live at
+[opennook.dev](https://opennook.dev) via Cloudflare Pages.
 
 ## Install
 
@@ -46,17 +46,23 @@ site/
   package.json
   tsconfig.json
   src/
+    pages/
+      index.astro            Landing page + interactive nook demo (site root).
     content.config.ts        Starlight docs collection (docsLoader/docsSchema).
     content/docs/
-      index.mdx              Splash landing page.
       start/                 Introduction, install, first nook.
       guides/                Components + theming + chrome guides.
       reference/             API reference (points at Swift Package Index).
+    styles/
+      custom.css             Starlight theme overrides.
 ```
+
+macOS app screenshots for the root README live in `../docs/images/` (not
+under `site/public/`).
 
 ## Editing content
 
-All pages are MDX under `src/content/docs/`. Sidebar order is declared in
-`astro.config.mjs`. Use Starlight's built-in components (`Card`,
-`CardGrid`, `Code`, `Tabs`, etc.) by importing from
-`@astrojs/starlight/components`.
+Docs pages are MDX under `src/content/docs/`. The landing page is
+`src/pages/index.astro`. Sidebar order is declared in `astro.config.mjs`.
+Use Starlight's built-in components (`Card`, `CardGrid`, `Code`, `Tabs`,
+etc.) by importing from `@astrojs/starlight/components`.
