@@ -21,4 +21,13 @@ enum NookLayout {
     static let width: CGFloat = 520
     static let edgePadding: CGFloat = 8
     static let compactSlotSize: CGFloat = 24
+
+    /// Maximum width allowed for the topbar's module-breadcrumb label.
+    ///
+    /// The topbar runs at the menu-bar level on a notched display, so anything
+    /// between the notch's edges is hardware-clipped. The breadcrumb is capped
+    /// to the leading pre-notch region so it doesn't visually split across
+    /// the notch. Sized for the default 520pt chrome with a ~200pt M-series
+    /// notch, leaving room for the chevron and a few characters of headroom.
+    static let breadcrumbMaxWidth: CGFloat = 140
 }

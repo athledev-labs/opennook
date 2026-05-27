@@ -59,32 +59,41 @@ struct NookTopBar: View {
                     .font(.system(size: 8, weight: .bold))
                     .foregroundStyle(resolvedTheme.quaternaryLabel)
 
-                // Long breadcrumbs (e.g. a host composing two levels of
-                // hierarchy into one string) get hard-cut by SwiftUI without
-                // an ellipsis once the trailing characters can't fit even the
-                // "…" itself. A trailing fade-out mask reads as "more text
-                // beyond" without resizing the chrome per route; the `.help`
-                // tooltip recovers the full string for the rare case a user
-                // needs to read the truncated tail. The frame fills the
-                // remaining HStack space (between the chevron and the
-                // trailing icon cluster) so the fade region sits over empty
-                // space for short labels and over the truncation point for
-                // long ones.
+                // The chrome's top edge sits at the menu bar level by design,
+                // so the topbar runs *under* the physical notch on a notched
+                // display: anything horizontally between the notch's edges is
+                // hardware-clipped. Leading content (home + chevron) lives on
+                // the left of the notch, trailing icons live on the right;
+                // the breadcrumb needs to stay on the leading side too or it
+                // visually splits across the notch. `.frame(width:)` (a hard
+                // size, not a flex) caps the breadcrumb to the leading
+                // pre-notch region without propagating an intrinsic width up
+                // through the chrome's sizing. The alpha mask fades the
+                // trailing 16pt so SwiftUI's missing-ellipsis truncation reads
+                // as a soft edge; `.help(breadcrumb)` exposes the full
+                // string on hover for the truncated tail.
                 Text(breadcrumb)
                     .font(.system(size: 11, weight: .regular))
                     .foregroundStyle(resolvedTheme.secondaryLabel)
                     .lineLimit(1)
-                    .frame(maxWidth: .infinity, alignment: .leading)
+                    .frame(width: NookLayout.breadcrumbMaxWidth, alignment: .leading)
                     .mask(
-                        HStack(spacing: 0) {
-                            Rectangle()
-                            LinearGradient(
-                                colors: [.black, .clear],
-                                startPoint: .leading,
-                                endPoint: .trailing
-                            )
-                            .frame(width: 16)
-                        }
+                        // Full opacity for the leading half of the
+                        // breadcrumb frame, then a smooth ramp to fully
+                        // clear at the trailing edge. A 50% fade region
+                        // is wide enough to land over actually-rendered
+                        // characters even when SwiftUI truncates short of
+                        // the frame's trailing edge — a narrower band
+                        // mostly fades empty space and reads as crisp.
+                        LinearGradient(
+                            stops: [
+                                .init(color: .black, location: 0),
+                                .init(color: .black, location: 0.5),
+                                .init(color: .clear, location: 1)
+                            ],
+                            startPoint: .leading,
+                            endPoint: .trailing
+                        )
                     )
                     .help(breadcrumb)
                     .transition(.opacity.combined(with: .offset(x: -4)))
