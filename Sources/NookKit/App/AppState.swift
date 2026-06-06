@@ -138,10 +138,19 @@ public final class AppState: ObservableObject {
 
     /// Loads the persisted appearance, hotkey, and display preferences from
     /// `UserDefaults`. Any missing or unreadable entry falls back to its `.default`.
-    public init() {
-        appearancePreferences = NookAppearanceStore.load()
-        hotkey = NookHotkeyStore.load()
-        displayPreference = NookDisplayStore.load()
+    public convenience init() {
+        self.init(preferenceDefaults: .default)
+    }
+
+    /// Loads the persisted appearance, hotkey, and display preferences from
+    /// `UserDefaults`, falling back to the host's launch *seed* (rather than the
+    /// framework `.default`) for any entry that has never been persisted. See
+    /// ``NookPreferenceDefaults`` for the seed semantics — the seed is never written
+    /// here, so a persisted user choice always wins.
+    public init(preferenceDefaults: NookPreferenceDefaults) {
+        appearancePreferences = NookAppearanceStore.load(default: preferenceDefaults.appearance)
+        hotkey = NookHotkeyStore.load(default: preferenceDefaults.hotkey)
+        displayPreference = NookDisplayStore.load(default: preferenceDefaults.display)
     }
 
     /// Replaces ``appearancePreferences`` and writes the new value to `UserDefaults`. A

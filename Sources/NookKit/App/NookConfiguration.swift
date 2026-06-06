@@ -67,6 +67,15 @@ public struct NookConfiguration: Sendable {
     /// ``NookTopBarConfiguration``.
     public var topBar: NookTopBarConfiguration
 
+    /// Launch *seed* values for the process-global preferences (appearance, global
+    /// hotkey, display target). On the single-module path (`NookApp.main(_:)` with a
+    /// `NookConfiguration`) this is forwarded onto the synthesized
+    /// ``NookHostConfiguration/preferenceDefaults``; multi-module hosts set it on
+    /// ``NookHostConfiguration`` directly. Defaults to ``NookPreferenceDefaults/default``
+    /// (today's framework behavior). See ``NookPreferenceDefaults`` for the
+    /// seed-vs-persisted semantics.
+    public var preferenceDefaults: NookPreferenceDefaults = .default
+
     /// Overrides the chrome's corner radii — the small rounding into the notch arch and
     /// the larger rounding where the panel meets the wallpaper. `nil` (the default) uses
     /// the framework's radii, tuned to sit well under the menu bar on notched MacBooks.

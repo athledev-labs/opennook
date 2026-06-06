@@ -42,6 +42,9 @@ public enum NookApp {
     /// one module and no switcher.
     public static func main(_ configuration: NookConfiguration = NookConfiguration()) {
         var host = NookHostConfiguration()
+        // Forward the single-module path's launch seed onto the host that actually owns
+        // the process-global preferences (appearance / hotkey / display).
+        host.preferenceDefaults = configuration.preferenceDefaults
         host.register(
             NookModuleDescriptor(id: ModuleHost.singleModuleID, displayName: "Nook")
         ) { configuration }
@@ -94,7 +97,13 @@ private final class AppDelegate: NSObject, NSApplicationDelegate {
     init(host: NookHostConfiguration) {
         let moduleHost = ModuleHost(registry: host.makeRegistry())
         self.moduleHost = moduleHost
-        self.coordinator = AppCoordinator(moduleHost: moduleHost)
+        // Seed the process-global preferences from the host's launch defaults before the
+        // coordinator starts, so the first paint and the initial hotkey registration use
+        // them (an `onReady` hook would run too late — after both).
+        self.coordinator = AppCoordinator(
+            appState: AppState(preferenceDefaults: host.preferenceDefaults),
+            moduleHost: moduleHost
+        )
         super.init()
     }
 

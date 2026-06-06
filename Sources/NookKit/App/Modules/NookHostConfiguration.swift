@@ -38,6 +38,13 @@ public struct NookHostConfiguration: Sendable {
     /// (`"Nook"` / nil) so an unconfigured host renders the demo strings.
     public var branding: NookHostBranding = .default
 
+    /// Launch *seed* values for the process-global preferences (appearance, global
+    /// hotkey, display target). Applied at ``AppState`` construction — before first
+    /// paint and before hotkey registration — so a host ships its own out-of-box look
+    /// and shortcut. Defaults to ``NookPreferenceDefaults/default`` (today's framework
+    /// behavior). See ``NookPreferenceDefaults`` for the seed-vs-persisted semantics.
+    public var preferenceDefaults: NookPreferenceDefaults = .default
+
     /// Builds an empty host. Register at least one module via ``register(_:factory:)``
     /// or ``register(_:configuration:)`` before passing to `NookApp.main(_:)`.
     public init() {}

@@ -99,10 +99,17 @@ enum NookHotkeyStore {
     private static let defaultsKey = "opennook.hotkey.v1"
 
     static func load() -> NookHotkey {
+        load(default: .default)
+    }
+
+    /// Loads the persisted value, falling back to `fallback` (rather than `.default`)
+    /// when nothing is persisted or the record is unreadable. The fallback is the host's
+    /// launch seed (see ``NookPreferenceDefaults``) and is never written here.
+    static func load(default fallback: NookHotkey) -> NookHotkey {
         guard let data = UserDefaults.standard.data(forKey: defaultsKey) else {
-            return .default
+            return fallback
         }
-        return (try? JSONDecoder().decode(NookHotkey.self, from: data)) ?? .default
+        return (try? JSONDecoder().decode(NookHotkey.self, from: data)) ?? fallback
     }
 
     static func save(_ hotkey: NookHotkey) {
