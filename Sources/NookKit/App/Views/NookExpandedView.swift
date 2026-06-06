@@ -99,7 +99,8 @@ public struct NookExpandedView: View {
                     toggleKeepOpen: toggleKeepOpen,
                     leadingTitle: topBar.leadingTitle,
                     leadingIcon: topBar.leadingIcon,
-                    showsSettings: topBar.showsSettings
+                    showsSettings: topBar.showsSettings,
+                    trailingItems: topBar.trailingItems
                 )
 
                 NookTransientStatusBanner(appState: appState, theme: resolvedTheme)

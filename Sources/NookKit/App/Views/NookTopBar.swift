@@ -29,6 +29,11 @@ struct NookTopBar: View {
     /// breadcrumb is moot. See ``NookConfiguration/showsSettings``.
     let showsSettings: Bool
 
+    /// Host actions for the trailing cluster, rendered left of the keep-open lock and
+    /// gear. `nil` (the default) leaves the cluster as just the framework's lock/gear.
+    /// See ``NookTopBarConfiguration/trailingItems``.
+    let trailingItems: (@Sendable @MainActor () -> AnyView)?
+
     @Environment(\.nookResolvedTheme) private var resolvedTheme
 
     /// Curve-derived safe-area insets from the chrome. The leading/trailing
@@ -102,6 +107,10 @@ struct NookTopBar: View {
             Spacer(minLength: 0)
 
             HStack(spacing: 4) {
+                if let trailingItems {
+                    trailingItems()
+                }
+
                 HeaderIcon(
                     systemName: appState.keepNookOpen ? "lock.fill" : "lock.open",
                     isActive: appState.keepNookOpen,

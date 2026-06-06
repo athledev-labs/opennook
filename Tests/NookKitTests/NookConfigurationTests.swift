@@ -93,6 +93,36 @@ final class NookConfigurationTests: XCTestCase {
         XCTAssertEqual(configuration.topBar.leadingIcon, "house")
     }
 
+    /// By default the trailing cluster carries no host items, so the top bar renders
+    /// exactly the framework chrome (just the keep-open lock and gear) — unchanged.
+    func testTopBarTrailingItemsDefaultsToNil() {
+        let configuration = NookConfiguration()
+
+        XCTAssertNil(configuration.topBar.trailingItems)
+    }
+
+    /// `setTopBarTrailingItems` installs host trailing-cluster actions, and invoking the
+    /// stored closure builds the host's view (so the chrome can render it left of the
+    /// lock/gear).
+    func testTopBarTrailingItemsClosureIsInvoked() {
+        final class InvocationFlag: @unchecked Sendable { var didBuild = false }
+        let flag = InvocationFlag()
+
+        var configuration = NookConfiguration()
+        XCTAssertNil(configuration.topBar.trailingItems)
+
+        configuration.setTopBarTrailingItems { () -> Text in
+            flag.didBuild = true
+            return Text("Host action")
+        }
+
+        XCTAssertNotNil(configuration.topBar.trailingItems)
+        XCTAssertFalse(flag.didBuild, "Building the host view must be lazy until rendered.")
+
+        _ = configuration.topBar.trailingItems?()
+        XCTAssertTrue(flag.didBuild)
+    }
+
     /// The default configuration ships the full framework chrome — top bar and Settings.
     func testDefaultConfigurationEnablesChrome() {
         let configuration = NookConfiguration()

@@ -165,6 +165,17 @@ public struct NookConfiguration: Sendable {
     ) {
         settings = { AnyView(content()) }
     }
+
+    /// Registers host actions for the top bar's trailing cluster from a `@ViewBuilder`
+    /// closure. The items render immediately left of the framework's keep-open lock and
+    /// gear, themed and able to observe ``AppState``. See
+    /// ``NookTopBarConfiguration/trailingItems`` for the space/clipping guidance — keep
+    /// these compact glyph-style buttons.
+    public mutating func setTopBarTrailingItems<Content: View & Sendable>(
+        @ViewBuilder _ content: @escaping @Sendable @MainActor () -> Content
+    ) {
+        topBar.trailingItems = { AnyView(content()) }
+    }
 }
 
 /// The framework top bar's host-configurable surface — the leading cluster
@@ -205,16 +216,40 @@ public struct NookTopBarConfiguration: Sendable {
     /// keep `nil` for title-only on hosts that set a custom title without an icon.
     public var leadingIcon: String?
 
+    /// Host-supplied actions for the top bar's **trailing** cluster, rendered to the
+    /// left of the framework's keep-open lock and gear (so the order reads
+    /// host items → lock → gear). `nil` (the default) reproduces the framework chrome
+    /// exactly — just the lock and gear. Use ``NookConfiguration/setTopBarTrailingItems(_:)``
+    /// to set it from a `@ViewBuilder`.
+    ///
+    /// The items render inside the same chrome environment as the rest of the top bar,
+    /// so they can observe ``AppState`` via `@EnvironmentObject` and read the resolved
+    /// palette via `@Environment(\.nookResolvedTheme)`.
+    ///
+    /// > Important: Space is tight. The chrome's top edge sits at the menu-bar level, so
+    /// > the top bar runs *under* the physical notch on a notched display — anything
+    /// > between the notch's edges is hardware-clipped. The trailing cluster lives to the
+    /// > right of the notch, leaving only ~80–100pt of usable width at the 480–520pt
+    /// > expanded widths. Host items should be compact glyph-style buttons (matching the
+    /// > lock/gear weight), not wide labeled pills.
+    ///
+    /// `@Sendable @MainActor`: like the other content closures, this builds SwiftUI
+    /// views during main-actor rendering and is carried by a `Sendable`
+    /// `NookTopBarConfiguration`.
+    public var trailingItems: (@Sendable @MainActor () -> AnyView)?
+
     public init(
         showsTopBar: Bool = true,
         showsSettings: Bool = true,
         leadingTitle: @escaping @Sendable (AppState) -> String = { _ in "Home" },
-        leadingIcon: String? = nil
+        leadingIcon: String? = nil,
+        trailingItems: (@Sendable @MainActor () -> AnyView)? = nil
     ) {
         self.showsTopBar = showsTopBar
         self.showsSettings = showsSettings
         self.leadingTitle = leadingTitle
         self.leadingIcon = leadingIcon
+        self.trailingItems = trailingItems
     }
 
     /// The framework-demo defaults — top bar on, Settings on, "Home" with the brand mark.
