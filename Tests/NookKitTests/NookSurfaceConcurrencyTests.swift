@@ -25,6 +25,23 @@ final class NookSurfaceConcurrencyTests: XCTestCase {
         Nook(expanded: { Text("x") })
     }
 
+    /// Poll until `condition` is true. Fixed post-`Task.sleep` margins flake on CI when
+    /// the full suite runs in parallel and the cooperative scheduler defers grace tasks.
+    private func waitUntil(
+        timeout: Duration = .seconds(2),
+        pollInterval: Duration = .milliseconds(10),
+        file: StaticString = #filePath,
+        line: UInt = #line,
+        _ condition: () -> Bool
+    ) async {
+        let deadline = ContinuousClock.now + timeout
+        while ContinuousClock.now < deadline {
+            if condition() { return }
+            try? await Task.sleep(for: pollInterval)
+        }
+        XCTFail("condition not met within \(timeout)", file: file, line: line)
+    }
+
     // MARK: - BUG 2: drag-session state machine
 
     /// A fresh enter snapshots the current state; the session reports active.
@@ -243,7 +260,7 @@ final class NookSurfaceConcurrencyTests: XCTestCase {
         nook.transitionConfiguration.layoutGraceDuration = 0.15
         nook.beginLayoutGrace()
         XCTAssertTrue(nook.isLayoutGraceActive)
-        try? await Task.sleep(nanoseconds: 200_000_000)
+        await waitUntil { !nook.isLayoutGraceActive }
         XCTAssertFalse(nook.isLayoutGraceActive)
     }
 
@@ -256,7 +273,7 @@ final class NookSurfaceConcurrencyTests: XCTestCase {
         nook.beginLayoutGrace()
         try? await Task.sleep(nanoseconds: 150_000_000)
         XCTAssertTrue(nook.isLayoutGraceActive, "refresh should extend grace")
-        try? await Task.sleep(nanoseconds: 100_000_000)
+        await waitUntil { !nook.isLayoutGraceActive }
         XCTAssertFalse(nook.isLayoutGraceActive)
     }
 
@@ -282,11 +299,11 @@ final class NookSurfaceConcurrencyTests: XCTestCase {
         await Task.yield()
         XCTAssertEqual(compactCount, 0, "layout grace should block hover-exit compact")
 
-        try await Task.sleep(nanoseconds: 250_000_000)
+        await waitUntil { !nook.isLayoutGraceActive }
         XCTAssertFalse(nook.isLayoutGraceActive)
         nook.updateHoverState(true)
         nook.updateHoverState(false)
-        try await Task.sleep(nanoseconds: 200_000_000)
+        await waitUntil { compactCount >= 1 }
         XCTAssertEqual(compactCount, 1, "after grace expires, hover-exit should compact")
     }
 }
