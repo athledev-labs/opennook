@@ -45,6 +45,32 @@ Validate locally before tagging:
 ./Scripts/extract-changelog-section.sh X.Y.Z   # preview release notes
 ```
 
+## Format lint
+
+Swift formatting is checked with `swift-format` and `.swift-format` at the repo
+root. CI lints **changed** Swift files only so legacy style does not block
+merges:
+
+```sh
+./Scripts/check-format.sh
+```
+
+To format files you are editing locally:
+
+```sh
+swift format format --configuration .swift-format path/to/File.swift
+```
+
+## Code coverage (informational)
+
+CI runs `swift test --enable-code-coverage` and uploads an LCOV report to
+Codecov as a non-blocking PR signal. Reproduce locally:
+
+```sh
+swift test --enable-code-coverage --parallel
+./Scripts/export-coverage.sh
+```
+
 ## Launch smoke tests
 
 Every example executable and the `Nook` demo support a deterministic expand/compact

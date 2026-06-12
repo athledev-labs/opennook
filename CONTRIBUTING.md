@@ -53,6 +53,10 @@ the header from a neighboring file in the same module.
 
 ## Coding conventions
 
+- **Formatting.** Swift style is enforced with `swift-format` and the repo
+  `.swift-format` config. CI lints **changed** `.swift` files only (not a
+  whole-repo reformat). Before opening a PR, run `./Scripts/check-format.sh`
+  or `swift format format --configuration .swift-format <files-you-touched>`.
 - **Strict concurrency.** Every target opts into `StrictConcurrency` via
   `Package.swift`. New code must compile clean under the strict checker - no
   silenced warnings, no `@unchecked Sendable` without a written reason.
@@ -104,11 +108,12 @@ the failure mode this section exists to prevent.
 3. If you added or changed public API, add a `CHANGELOG.md` entry and update
    the docs site (see [Documentation](#documentation)).
 4. If you touched comments or docs prose, run `./Scripts/check-ascii.sh`.
-5. If you touched `Sources/NookSurface/` or added/removed Swift files,
+5. If you changed Swift source, run `./Scripts/check-format.sh`.
+6. If you touched `Sources/NookSurface/` or added/removed Swift files,
    verify the license-header job locally:
    `grep -L 'SPDX-License-Identifier' $(find Sources Tests Examples App -name '*.swift')`
    should print nothing.
-6. Open a PR using the template. CI must be green before merge. Merge with
+7. Open a PR using the template. CI must be green before merge. Merge with
    rebase to keep history linear.
 
 ## License
