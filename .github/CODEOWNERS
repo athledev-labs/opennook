@@ -1,0 +1,4 @@
+# Dual-license boundary: NookSurface stays MIT and must stay thin.
+/Sources/NookSurface/ @glendonC
+/Tests/NookKitTests/NookSurfaceConcurrencyTests.swift @glendonC
+/Tests/NookKitTests/NookShapeTests.swift @glendonC

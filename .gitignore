@@ -10,6 +10,8 @@ xcuserdata/
 # after editing project.yml.
 Nook.xcodeproj/
 .swiftpm/
+# Library package - resolved pins are local/CI-specific, not committed.
+Package.resolved
 
 # Generated DocC output (Scripts/generate-docs.sh). The hosted API reference is
 # built by Swift Package Index from .spi.yml, so this never needs committing.
