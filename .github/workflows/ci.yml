@@ -156,3 +156,19 @@ jobs:
       # time instead of silently breaking the next release's hosted docs.
       - name: Build the API reference
         run: ./Scripts/generate-docs.sh
+
+  site:
+    name: Docs site build
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version-file: site/.node-version
+          cache: npm
+          cache-dependency-path: site/package-lock.json
+      - name: Install and build the Starlight site
+        working-directory: site
+        run: |
+          npm ci
+          npm run build
