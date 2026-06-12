@@ -13,6 +13,9 @@ to follow [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
   `#if compiler(>=6.2)`, so an earlier toolchain compiles the pre-Tahoe
   approximation instead of failing with "cannot find 'Glass' in scope"; on
   macOS 26 the real material is still used at runtime.
+- Cleared a Swift 6 concurrency warning on `NookFilePickerKey.defaultValue` (a
+  `@MainActor`-isolated value held in a nonisolated static): the inert default
+  picker now has a `nonisolated init`. No behavior change.
 
 ## [0.3.0] - 2026-06-12
 
