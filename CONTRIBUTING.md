@@ -98,15 +98,18 @@ the failure mode this section exists to prevent.
 
 ## Submitting a change
 
-1. Branch off `main` (don't commit on `main` directly).
+1. Branch off `main` (don't commit on `main` directly). `main` is protected -
+   changes land through a PR with green CI.
 2. Make the change. Run `swift build && swift test` locally.
 3. If you added or changed public API, add a `CHANGELOG.md` entry and update
    the docs site (see [Documentation](#documentation)).
-4. If you touched `Sources/NookSurface/` or added/removed Swift files,
+4. If you touched comments or docs prose, run `./Scripts/check-ascii.sh`.
+5. If you touched `Sources/NookSurface/` or added/removed Swift files,
    verify the license-header job locally:
    `grep -L 'SPDX-License-Identifier' $(find Sources Tests Examples App -name '*.swift')`
    should print nothing.
-5. Open a PR using the template. CI must be green before review.
+6. Open a PR using the template. CI must be green before merge. Merge with
+   rebase to keep history linear.
 
 ## License
 
