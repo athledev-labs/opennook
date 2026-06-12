@@ -20,7 +20,7 @@ import Foundation
 /// Carbon delivers `kEventHotKeyPressed` callbacks on the main thread in practice, but
 /// that is not contractually guaranteed, so the C event handler does not touch any
 /// controller state directly — it hops the lookup-and-dispatch onto the main actor via
-/// ``dispatchHandler(forCarbonID:)``. That makes the single-actor invariant provable
+/// `dispatchHandler(forCarbonID:)`. That makes the single-actor invariant provable
 /// rather than accidental.
 @MainActor
 public final class HotkeyController {

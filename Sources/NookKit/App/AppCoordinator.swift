@@ -843,7 +843,7 @@ public final class AppCoordinator: ObservableObject {
     }
 
     /// Shows the Settings screen. When the host disabled Settings
-    /// (``NookConfiguration/showsSettings`` is `false`) there is no Settings UI, so this
+    /// (``NookTopBarConfiguration/showsSettings`` is `false`) there is no Settings UI, so this
     /// falls back to showing the home surface and `viewMode` stays `.home`.
     public func showSettings() {
         guard configuration.topBar.showsSettings else {

@@ -9,7 +9,7 @@ import AppKit
 import Carbon
 
 /// A user-configurable global hotkey. Stores the Carbon virtual key code and modifier
-/// mask needed by ``HotkeyController/register(keyCode:modifiers:handler:)``, plus a
+/// mask needed by ``HotkeyController/register(_:keyCode:modifiers:handler:)``, plus a
 /// display symbol for the non-modifier key (the modifier glyphs are derived).
 public struct NookHotkey: Equatable, Codable, Sendable {
     /// Carbon `kVK_*` virtual key code. Matches `NSEvent.keyCode`.

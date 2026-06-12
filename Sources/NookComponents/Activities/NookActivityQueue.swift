@@ -65,6 +65,8 @@ public final class NookActivityQueue: ObservableObject {
     /// Connects the queue to the surface it presents through, and starts draining any
     /// already-queued activities. Call once — `NookConfiguration.onReady` is the seam.
     ///
+    /// - Parameter presenter: the surface the queue drives its takeovers through - the
+    ///   host `AppCoordinator` in a single-module app, or the active module's coordinator.
     /// - Parameter moduleID: the module this queue belongs to, stamped onto its surface
     ///   claims. When `nil`, the foreground module at bind time is assumed — correct for
     ///   a single-module host. A multi-module host should pass `context.descriptor.id`
