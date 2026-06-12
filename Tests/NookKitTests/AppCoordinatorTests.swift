@@ -555,6 +555,25 @@ final class AppCoordinatorTests: XCTestCase {
     /// Recorder opened and then cancelled without changing the key collapses through
     /// `.suspended` -> `.bound(unchanged)` - exactly one restore registration after the
     /// unregister.
+
+    // MARK: - Launch smoke test
+
+    func testLaunchSmokeTestExpandCompactCycle() async {
+        let surface = FakeNookSurface()
+        await surface.compact(on: nil)
+        let coordinator = makeCoordinator(
+            modules: [SpyModule(id: "A", expandLog: ExpandLog())],
+            surface: surface
+        )
+
+        let ok = await coordinator.runLaunchSmokeTest(timeout: 5)
+
+        XCTAssertTrue(ok)
+        XCTAssertEqual(surface.state, .compact)
+        XCTAssertFalse(coordinator.appState.isNookVisible)
+        XCTAssertTrue(surface.transitions.contains(.expanded))
+    }
+
     // MARK: - Cold-launch onCompact suppression
 
     /// Regression: the cold-launch compact in `start()` is a boot artifact, not a

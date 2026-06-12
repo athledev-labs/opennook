@@ -73,6 +73,30 @@ jobs:
             -destination 'platform=macOS' \
             build | xcbeautify
 
+  launch-smoke:
+    name: Launch smoke (examples + Nook)
+    runs-on: macos-15
+    steps:
+      - uses: actions/checkout@v4
+      - uses: maxim-lobanov/setup-xcode@v1
+        with:
+          xcode-version: latest-stable
+      - name: Run expand/compact launch smoke on every executable
+        run: ./Scripts/smoke-examples.sh
+
+  ui-smoke:
+    name: UI smoke (notch panel)
+    runs-on: macos-15
+    steps:
+      - uses: actions/checkout@v4
+      - uses: maxim-lobanov/setup-xcode@v1
+        with:
+          xcode-version: latest-stable
+      - name: Install XcodeGen
+        run: brew install xcodegen xcbeautify
+      - name: Build app bundle and verify real panel window
+        run: ./Scripts/smoke-ui-app.sh
+
   licenses:
     name: License-header sanity
     runs-on: macos-15

@@ -116,6 +116,7 @@ private final class AppDelegate: NSObject, NSApplicationDelegate {
     func applicationDidFinishLaunching(_ notification: Notification) {
         coordinator.start()
         installMenuBarFallback()
+        NookLaunchSmoke.handleLaunch(coordinator: coordinator)
     }
 
     func applicationShouldTerminateAfterLastWindowClosed(_ sender: NSApplication) -> Bool {

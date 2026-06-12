@@ -44,3 +44,20 @@ Validate locally before tagging:
 ./Scripts/validate-release-changelog.sh vX.Y.Z
 ./Scripts/extract-changelog-section.sh X.Y.Z   # preview release notes
 ```
+
+## Launch smoke tests
+
+Every example executable and the `Nook` demo support a deterministic expand/compact
+cycle when launched with `OPENNOOK_SMOKE_TEST=1` (the process exits 0/1). Run them
+all locally with:
+
+```sh
+./Scripts/smoke-examples.sh
+```
+
+The bundled Xcode app supports `OPENNOOK_UI_SMOKE_TEST=1` (expands the real panel,
+checks the `opennook.panel` accessibility identifier, then exits). Run it with:
+
+```sh
+./Scripts/smoke-ui-app.sh
+```

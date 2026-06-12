@@ -47,6 +47,7 @@ final class NookPanel: NSPanel {
             .fullScreenAuxiliary,
             .ignoresCycle,
         ]
+        setAccessibilityIdentifier("opennook.panel")
     }
 
     override var canBecomeKey: Bool {
