@@ -180,8 +180,8 @@ NookApp.main(configuration)
 ```
 
 For how `expandedWidth`, `expandedContentInsets`, `metrics.edgePadding`, and
-`nookContentInsets` compose into usable content width — and how to avoid
-double horizontal padding on the home view — see
+`nookContentInsets` compose into usable content width - and how to avoid
+double horizontal padding on the home view - see
 [Layout and content insets](/guides/layout-and-insets/) and
 `Examples/LayoutNook/main.swift`.
 
@@ -207,7 +207,7 @@ from it.
 ```swift
 public struct NookAppearancePreferences: Equatable, Codable, Sendable {
     public var chromePalette: NookChromePalette   // .followSystem / .dark / .light
-    public var surfaceStyle: NookSurfaceStyle     // .solid / .translucent
+    public var surfaceStyle: NookSurfaceStyle     // .solid / .translucent / .liquidGlass
     public var presentation: NookPresentation     // .auto / fused / free-floating
     public var hapticFeedbackEnabled: Bool
     public var keepNookOpen: Bool
@@ -216,7 +216,8 @@ public struct NookAppearancePreferences: Equatable, Codable, Sendable {
 
 - `chromePalette` pins the chrome to dark / light or follows macOS.
 - `surfaceStyle` picks a solid panel that matches the menu-bar notch (the
-  default), or a translucent material that lets the wallpaper through.
+  default), a translucent material that lets the wallpaper through, or Liquid
+  Glass - see [Surface materials](/guides/surface-materials/).
 - `presentation` is `.auto` by default and is the knob that makes the chrome
   work on a Mac with no notch.
 
@@ -227,6 +228,7 @@ configuration.theme = { appState in
     switch appState.appearancePreferences.surfaceStyle {
     case .solid:       return SolidPalette.resolve(appState)
     case .translucent: return FrostPalette.resolve(appState)
+    case .liquidGlass: return GlassPalette.resolve(appState)
     }
 }
 ```

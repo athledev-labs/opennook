@@ -1,0 +1,73 @@
+---
+title: Examples
+description: An index of the nine single-file example apps under Examples/, each linked to the guide that covers it
+---
+
+Every example under `Examples/` is a single-file host that builds on OpenNook's
+public API only - no forking, no patched framework. Each one is its own SPM
+target, so you run it straight from the repo with `swift run <Name>` and press
+the show/hide hotkey (the default is the option-command-semicolon combination)
+to expand the nook.
+
+They are grouped here so you can jump to the one closest to what you are
+building. Each entry links to the guide that explains the concept in full.
+
+## Getting started
+
+The smallest hosts - one view, or one view plus a compact-slot glyph. Start
+here if you have never run an OpenNook app.
+
+- **HelloNook** - `swift run HelloNook`. The smallest possible app: hand
+  `NookApp.main` one SwiftUI view and the top bar, Settings, hotkey, and compact
+  pill all come for free. See [Your first nook](/start/first-nook/).
+- **ClockNook** - `swift run ClockNook`. A live-clock home surface plus a custom
+  compact glyph, showing the `setHome` and `setCompactTrailing` registration
+  knobs side by side. See [Your first nook](/start/first-nook/).
+
+## Customization
+
+Reshaping the chrome - palette, lifecycle hooks, brand mark, layout - through
+`NookConfiguration`.
+
+- **ThemedNook** - `swift run ThemedNook`. A host-supplied `NookResolvedTheme`
+  that paints the chrome labels, plus the `onExpand` / `onCompact` lifecycle
+  callbacks. See [Theming](/guides/theming/).
+- **ChromeNook** - `swift run ChromeNook`. A tour of the deeper chrome seams:
+  launch-preference defaults, hover and backdrop behavior, label and metric
+  overrides, a custom brand mark, top-bar trailing actions, and the status
+  banner. See [Chrome customization](/guides/chrome-customization/).
+- **LayoutNook** - `swift run LayoutNook`. The recommended expanded-width and
+  content-inset patterns - how a home view reads `\.nookContentInsets` instead
+  of adding its own horizontal padding. See
+  [Layout and content insets](/guides/layout-and-insets/).
+
+## Components
+
+Drop-in surfaces from the `NookComponents` add-on. Each imports
+`NookComponents` alongside `NookApp`.
+
+- **ShelfNook** - `swift run ShelfNook`. A file shelf in the notch: drag files
+  on to collect them, drag them back out to Finder, persisted across launches.
+  See [File shelf](/guides/file-shelf/).
+- **ActivityNook** - `swift run ActivityNook`. A `NookActivityQueue` that
+  collects transient activities and briefly takes over the expanded surface for
+  each, one at a time. See [Activity queue](/guides/activity-queue/).
+- **VolumeNook** - `swift run VolumeNook`. An ambient volume glyph in the
+  compact pill - a `SystemVolumeObserver` tracks the output level and
+  `NookVolumeIndicator` renders it beside the notch. See
+  [Volume glyph](/guides/volume-glyph/).
+
+## Hosting
+
+Running more than one notch app in a single process.
+
+- **MultiNook** - `swift run MultiNook`. One host process with several
+  interchangeable modules sharing one surface, switched through the menu bar,
+  the cycle hotkey, or an in-surface switcher. See
+  [Multiple modules](/guides/multiple-modules/).
+
+## See also
+
+- The `Examples/` directory in the repository - the source for every app above.
+- [Your first nook](/start/first-nook/) - the walkthrough HelloNook and
+  ClockNook accompany.

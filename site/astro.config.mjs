@@ -60,14 +60,17 @@ export default defineConfig({
             { label: 'Introduction', slug: 'start/introduction' },
             { label: 'Install', slug: 'start/install' },
             { label: 'Your first nook', slug: 'start/first-nook' },
+            { label: 'Examples', slug: 'guides/examples' },
           ],
         },
         {
           label: 'Customization',
           items: [
             { label: 'Theming', slug: 'guides/theming' },
+            { label: 'Surface materials', slug: 'guides/surface-materials' },
             { label: 'Layout and content insets', slug: 'guides/layout-and-insets' },
             { label: 'Settings chrome', slug: 'guides/settings-chrome' },
+            { label: 'Chrome customization', slug: 'guides/chrome-customization' },
             { label: 'Displays and presentation', slug: 'guides/displays' },
           ],
         },

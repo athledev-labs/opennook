@@ -1,0 +1,176 @@
+---
+title: Surface materials
+description: Pick the material the chrome paints behind nook content - solid, translucent, or Liquid Glass
+---
+
+A *surface style* decides what the chrome paints behind compact and expanded
+nook content: a flat opaque panel, a frosted vibrancy material, or Apple's
+Liquid Glass. It is a user-facing preference - the framework ships a Settings
+control for it and persists the choice - so most hosts never set it in code;
+they read the resolved value back to pick a matching palette.
+
+## Where the style is picked
+
+The style lives on `NookAppearancePreferences.surfaceStyle`:
+
+```swift
+public enum NookSurfaceStyle: String, Codable, Sendable, CaseIterable {
+    case solid        // opaque panel, matches the menu-bar notch (the default)
+    case translucent  // frosted vibrancy material, shows the wallpaper
+    case liquidGlass  // Apple's Liquid Glass material (macOS 26+)
+}
+```
+
+`surfaceStyle` defaults to `.solid`. The framework owns the Settings panel that
+writes it - the Appearance screen renders a segmented "Surface" picker (Solid /
+Translucent / Liquid Glass) and persists the selection through
+`AppState.replaceAppearancePreferences(_:)`. Your code reads from it; see [how a
+host reads the style](#read-the-style-to-pick-a-palette) below.
+
+To ship a non-default out of the box, seed it on
+`NookConfiguration.preferenceDefaults` (a seed the user can always override in
+Settings, never persisted on its own):
+
+```swift
+configuration.preferenceDefaults = NookPreferenceDefaults(
+    appearance: NookAppearancePreferences(surfaceStyle: .liquidGlass)
+)
+```
+
+## The three styles
+
+The mapping from a style to a concrete `NookBackdrop` lives in
+`NookBackdropMapping.notchBackdrop`, keyed by the style, the effective color
+scheme, and whether Reduce Transparency is on.
+
+- **`.solid`** paints a flat opaque fill - true black on dark chrome, true white
+  on light - so the expanded panel reads as one continuous surface with the
+  physical notch. No `NSVisualEffectView` is involved. This is the default and
+  the most legible over any wallpaper.
+- **`.translucent`** paints a frosted `NSVisualEffectView` sidebar material
+  sampling the wallpaper behind the window, with a legibility darken pass
+  composited on top. The darken scales with `backdropStrength` (the Settings
+  "Translucency strength" slider) so the user can let more wallpaper through.
+- **`.liquidGlass`** paints Apple's Liquid Glass material on macOS 26 (Tahoe)
+  and later, and a layered approximation on earlier systems. The default mapping
+  uses neutral, untinted glass - the real material refracts the wallpaper on its
+  own - with a light top-to-bottom darken so the surface reads glassier as it
+  nears the wallpaper.
+
+## Liquid Glass in depth
+
+Liquid Glass renders through `NookBackdrop.liquidGlass(LiquidGlass)`. The
+`LiquidGlass` spec carries four knobs that drive both render paths:
+
+```swift
+public struct LiquidGlass: Equatable, Sendable {
+    public var tint: Color?            // nil = neutral, clear glass (the default)
+    public var tintStrength: CGFloat   // 0...1, default 0.18; ignored when tint is nil
+    public var highlightStrength: CGFloat // 0...1 specular rim + sheen, default 0.6
+    public var shading: Shading?       // legibility gradient the caller fully owns
+}
+```
+
+`shading` is a `Gradient` plus a direction (`startPoint`/`endPoint`, defaulting
+top-to-bottom), so the legibility pass is entirely the caller's - the surface
+renders exactly what the spec carries and never substitutes its own. The default
+framework mapping supplies a sensible top-to-bottom darken; a host returning its
+own `.liquidGlass` from a backdrop resolver can replace it wholesale.
+
+### Real material vs the pre-Tahoe approximation
+
+The surface dispatches on availability. On macOS 26+ it draws the real system
+material; on macOS 15-25 it draws a layered approximation that reads as glass:
+
+- **Real material (macOS 26+).** A `Color.clear` painted with
+  `.glassEffect(_:in:)` using a `Glass` material, clipped to the same
+  `NookShape` the chrome already uses, with the host's `shading` overlaid on
+  top. A non-nil `tint` becomes `Glass.regular.tint(tint.opacity(tintStrength))`.
+  macOS supplies its own edge highlights here, so `highlightStrength` only adds a
+  faint extra rim.
+- **Approximation (macOS 15-25).** A glassy `NSVisualEffectView` (`.hudWindow`)
+  material, an optional tint overlay, the same `shading`, then the specular
+  treatment that actually sells the glass read: a top-down sheen and a bright rim
+  traced along `NookShape`. `highlightStrength` scales that sheen and rim.
+
+### Runtime gate and compile gate
+
+The real path is gated twice, and it matters for what you can build and where it
+runs:
+
+- **Runtime gate** - `@available(macOS 26.0, *)`: the real `.glassEffect`
+  material only renders on macOS 26 and later. On an older OS the surface falls
+  back to the approximation at runtime, so it cannot crash on systems without
+  the material.
+- **Compile gate** - `#if compiler(>=6.2)`: `Glass` and `.glassEffect` exist
+  only in the macOS 26 SDK (Xcode 26+, Swift 6.2). An `@available` check still
+  needs those symbols present in the SDK being compiled against, so an older
+  Xcode cannot build the real path at all. The compile gate routes an earlier
+  toolchain to the approximation unconditionally, so the package builds on Xcode
+  before 26 instead of failing with "cannot find 'Glass' in scope".
+
+Putting both together: the package always builds, on any supported Xcode. The
+real material needs the macOS 26 SDK (Xcode 26+) to build *and* macOS 26 at
+runtime to render. Anywhere else, `.liquidGlass` still works - it just draws the
+approximation.
+
+## Reduce Transparency
+
+When the user enables Reduce Transparency, the mapping collapses both
+translucent styles toward solid. `.translucent` and `.liquidGlass` both fall
+back to a flat opaque fill (black on dark, white on light) - neither the frosted
+material nor the glass renders when the user has opted out of translucency. The
+guard is a single check in `NookBackdropMapping.notchBackdrop`:
+
+```swift
+if preferences.surfaceStyle == .solid || reduceTransparency {
+    return .solid(isDark ? .black : .white)
+}
+```
+
+So a host palette never has to special-case Reduce Transparency for the surface
+material itself - the surface is already solid. (You may still want to nudge
+`subtleFill` for contrast on a true-solid panel; see the [Theming
+guide](/guides/theming/).)
+
+## Read the style to pick a palette
+
+A host that brands its chrome usually reads the chosen surface style and returns
+a matching `NookResolvedTheme`. Branch on
+`appState.appearancePreferences.surfaceStyle`:
+
+```swift
+configuration.theme = { appState in
+    switch appState.appearancePreferences.surfaceStyle {
+    case .solid:       return SolidPalette.resolve(appState)
+    case .translucent: return FrostPalette.resolve(appState)
+    case .liquidGlass: return GlassPalette.resolve(appState)
+    }
+}
+```
+
+The switch is exhaustive over all three cases, so adding a palette branch for
+`.liquidGlass` keeps it compiling. A glass-tuned palette typically leans on
+lighter fills and brighter labels, since the glass keeps its own contrast and
+needs less darken under chrome content than a frosted material does.
+
+To paint brand-tinted glass instead of reading it back, supply a `LiquidGlass`
+spec from a `NookChromeBehavior` backdrop resolver - that closure, not the
+Settings style, is where the deeper customization lives:
+
+```swift
+configuration.chromeBehavior = NookChromeBehavior(
+    backdrop: { preferences, scheme, reduceTransparency in
+        .liquidGlass(.init(tint: .blue, tintStrength: 0.22))
+    }
+)
+```
+
+## See also
+
+- [Theming](/guides/theming/) - the palette resolver and `NookResolvedTheme`
+  slots that pair with the surface material.
+- `Sources/NookSurface/NookBackdrop.swift` - the `NookBackdrop` and `LiquidGlass`
+  types, the source of truth for the knobs.
+- `Sources/NookKit/App/NookBackdropMapping.swift` - how a style, color scheme,
+  and Reduce Transparency map to a backdrop.

@@ -75,15 +75,33 @@ companion, not a dumping ground. Each example demonstrates **one** concept
 and uses **only the public API** (no `@testable`, no module-internal
 reaches). If a concept needs a new example, propose it in an issue.
 
+## Documentation
+
+The docs site lives in `site/src/content/docs/` (Astro Starlight, MDX). When you
+add or change public API, update the docs in the same change:
+
+- Add or update the relevant guide under `site/src/content/docs/guides/`, and
+  wire any new page into the sidebar in `site/astro.config.mjs`.
+- Add a `CHANGELOG.md` entry under `## [Unreleased]`.
+- Keep prose ASCII-only - hyphens (` - `), straight quotes, three dots for an
+  ellipsis - and match the surrounding guides' style.
+- A new public symbol still needs its DocC comment in source (see Public API
+  discipline above); the guides are the prose layer on top.
+
+Treat a feature as unfinished until its docs land. The site lagging the code is
+the failure mode this section exists to prevent.
+
 ## Submitting a change
 
 1. Branch off `main` (don't commit on `main` directly).
 2. Make the change. Run `swift build && swift test` locally.
-3. If you touched `Sources/NookSurface/` or added/removed Swift files,
+3. If you added or changed public API, add a `CHANGELOG.md` entry and update
+   the docs site (see [Documentation](#documentation)).
+4. If you touched `Sources/NookSurface/` or added/removed Swift files,
    verify the license-header job locally:
    `grep -L 'SPDX-License-Identifier' $(find Sources Tests Examples App -name '*.swift')`
    should print nothing.
-4. Open a PR using the template. CI must be green before review.
+5. Open a PR using the template. CI must be green before review.
 
 ## License
 

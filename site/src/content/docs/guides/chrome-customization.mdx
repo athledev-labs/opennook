@@ -1,0 +1,373 @@
+---
+title: Chrome customization
+description: The additive NookConfiguration seams for launch defaults, chrome behavior, labels, branding, trailing items, and the status banner
+---
+
+[Theming](/guides/theming/) paints the chrome palette and [Settings
+chrome](/guides/settings-chrome/) toggles the top bar. This guide covers the
+rest of `NookConfiguration` - the deeper seams a host reaches for when it wants
+to ship its own out-of-box look, retune the chrome's behavior and motion, or
+brand the framework's identity.
+
+Every seam here is **additive and non-breaking**: each one defaults to a value
+that reproduces the framework exactly, so a plain `NookApp.main { MyHomeView() }`
+is unchanged. You opt in only where you need to. None of these are required to
+ship a working notch app.
+
+The working example for everything below is `Examples/ChromeNook/main.swift`.
+
+## When to reach for these
+
+- **Ship a non-default out-of-box look.** A host that should launch translucent,
+  dark, or floating - before the user ever opens Settings - seeds that through
+  `preferenceDefaults`.
+- **Change how the chrome behaves, not how it looks.** Hover side-effects, the
+  cold-launch greeting, and the appearance-to-backdrop mapping live on
+  `chromeBehavior`.
+- **Localize or rename chrome strings, or retune its fixed layout / springs.**
+  `labels`, `metrics`, and `motion` cover those.
+- **Brand the framework's identity.** Name the product, swap the brand mark, or
+  drop the menu-bar item through `branding` and `showsMenuBarExtra`.
+- **Add top-bar actions or post status.** `setTopBarTrailingItems` plants host
+  glyphs in the top bar; `AppState.showStatus` drives the framework banner.
+
+## Launch defaults: `preferenceDefaults`
+
+The process-global preferences - appearance (palette / surface style /
+presentation / haptics / keep-open), the global show/hide `NookHotkey`, and the
+`NookDisplayPreference` - normally start from framework defaults until the user
+changes them in Settings. `preferenceDefaults` reseeds those starting values, so
+a host can launch with its own look and shortcut without the user opening
+Settings first.
+
+These are **seed values, not overrides**. The moment the user changes one of
+them at runtime, that change is persisted and always wins; a seed value is
+**never written** to `UserDefaults`. That distinction matters: revising a default
+in a later build still reaches every user who never touched that setting, instead
+of being shadowed by a stale persisted copy.
+
+```swift
+configuration.preferenceDefaults = NookPreferenceDefaults(
+    appearance: NookAppearancePreferences(
+        chromePalette: .followSystem,
+        surfaceStyle: .translucent,
+        presentation: .auto
+    )
+)
+```
+
+`NookPreferenceDefaults` carries three fields, each with a default that
+reproduces the framework:
+
+```swift
+public struct NookPreferenceDefaults: Sendable, Equatable {
+    public var appearance: NookAppearancePreferences  // default .default
+    public var hotkey: NookHotkey                      // default .default (cmd-opt-;)
+    public var display: NookDisplayPreference          // default .builtIn
+}
+```
+
+Seed a different launch shortcut and display target the same way:
+
+```swift
+configuration.preferenceDefaults = NookPreferenceDefaults(
+    hotkey: NookHotkey(keyCode: 49, carbonModifiers: 4096 | 2048, keySymbol: "Space"),
+    display: .main   // launch on whichever screen hosts the active menu bar
+)
+```
+
+On the single-module path this `NookConfiguration.preferenceDefaults` is
+forwarded onto the synthesized host; a multi-module host sets the same value on
+`NookHostConfiguration.preferenceDefaults` (see [Multiple
+modules](/guides/multiple-modules/)). Because there is one `AppState` per
+process, these are host-process-global either way.
+
+## Chrome behavior: `NookChromeBehavior`
+
+`chromeBehavior` describes how the single shared surface *behaves* - distinct
+from the per-surface content and theme seams. It carries three knobs, each
+defaulting to today's framework behavior:
+
+```swift
+configuration.chromeBehavior = NookChromeBehavior(
+    hoverBehavior: .all,         // default []: opt into hover side-effects
+    showsLaunchShimmer: false,   // default true: launch silently
+    backdrop: { preferences, scheme, reduceTransparency in
+        .vibrancy(.init(material: .hudWindow, darkenOpacity: 0.3))
+    }
+)
+```
+
+### Hover behavior
+
+`hoverBehavior` is a `NookHoverBehavior` option set, empty by default - the
+framework applies no hover side-effects out of the box. Opt into either or both:
+
+```swift
+public struct NookHoverBehavior: OptionSet, Sendable {
+    public static let keepVisible    // hover keeps the surface visible past hide
+    public static let hapticFeedback // a subtle alignment haptic on hover transitions
+    public static let all            // [.keepVisible, .hapticFeedback]
+}
+```
+
+Read once when the surface is built, like `style`.
+
+### Launch shimmer
+
+`showsLaunchShimmer` defaults to `true` - the one-shot perimeter shimmer that
+plays at cold launch. Set it to `false` for a silent launch; the chrome still
+settles into its compact launch state, it just skips the feedback flourish.
+
+### Backdrop resolver
+
+`backdrop` overrides how appearance preferences map to the surface backdrop.
+`nil` (the default) uses the framework mapping - solid black or white for `.solid`
+or Reduce Transparency, otherwise a `.sidebar` vibrancy with a legibility darken.
+Supply a resolver to paint a brand-specific material, darken, or solid color
+while still reacting to the live appearance state:
+
+```swift
+public typealias BackdropResolver =
+    @Sendable @MainActor (NookAppearancePreferences, ColorScheme, Bool) -> NookBackdrop
+```
+
+The resolver receives the current `NookAppearancePreferences`, the effective
+`ColorScheme` (after the host's palette override and the system scheme), and
+whether Reduce Transparency is on. It returns a `NookBackdrop` - one of
+`.vibrancy(_:)`, `.solid(_:)`, or `.liquidGlass(_:)`. This closure, not any
+configuration struct, is where brand-tinted glass or a custom material lives:
+
+```swift
+configuration.chromeBehavior = NookChromeBehavior(
+    backdrop: { preferences, scheme, reduceTransparency in
+        if reduceTransparency || preferences.surfaceStyle == .solid {
+            return .solid(scheme == .dark ? .black : .white)
+        }
+        return .liquidGlass(.init(tint: .indigo, tintStrength: 0.22))
+    }
+)
+```
+
+`NookChromeBehavior` is not `Equatable` because `backdrop` carries a closure.
+Like `preferenceDefaults`, it is host-process-global: a single-module host sets
+it on `NookConfiguration`; a multi-module host sets it on
+`NookHostConfiguration.chromeBehavior`.
+
+## Labels, metrics, motion
+
+Three small value types tune the chrome's strings, fixed layout values, and
+in-panel springs. Each defaults to a value that reproduces today's framework
+exactly, and each reaches the views through a chrome environment value, so a host
+sets only the fields it cares about.
+
+### Labels
+
+`NookChromeLabels` holds the strings the chrome renders - for localization or
+product naming (for example "Preferences" instead of "Settings"):
+
+```swift
+configuration.labels.settingsBreadcrumb = "Preferences"
+configuration.labels.keepOpenHelp = "Stay expanded after hover"
+configuration.labels.settingsHelp = "Settings"
+configuration.labels.dismissHelp = "Dismiss"
+```
+
+`settingsBreadcrumb` is the label after the leading cluster
+(`[icon] Title > Settings`); the other three are tooltips on the keep-open lock,
+the gear, and the banner's dismiss button.
+
+### Metrics
+
+`NookChromeMetrics` exposes the few fixed point values that were previously baked
+into the views. Defaults reproduce today's layout:
+
+```swift
+configuration.metrics.edgePadding = 8          // panel edge to content inset
+configuration.metrics.compactSlotSize = 24     // square size of each compact pill slot
+configuration.metrics.breadcrumbMaxWidth = 140 // top-bar breadcrumb width before it fades
+configuration.metrics.topBarHeight = 24        // fixed height of the top bar icon row
+```
+
+`edgePadding` is distinct from `NookStyle.expandedContentInsets`; host home views
+should read the residual clearance through `nookContentInsets` rather than
+mirroring it with extra padding. See [Layout and content
+insets](/guides/layout-and-insets/) and `Examples/LayoutNook/main.swift`.
+
+### Motion
+
+`NookChromeMotion` retunes the chrome's *in-panel* animation curves - distinct
+from `NookConfiguration.transitions`, which governs the surface-level
+expand / collapse / compact conversion. These drive the home-to-Settings swap,
+the status banner, the breadcrumb, and the leading cluster's reveals:
+
+```swift
+configuration.motion.viewModeChange = .snappy        // home<->Settings swap and gear toggle
+configuration.motion.leadingClusterBack = .snappy    // exiting Settings / clearing a breadcrumb
+configuration.motion.leadingClusterHover = .snappy   // hover-reveal of the title
+configuration.motion.statusBanner = .snappy          // banner appearance / dismissal
+configuration.motion.breadcrumb = .easeOut(duration: 0.18)
+```
+
+## Identity: branding, brand mark, menu-bar
+
+`NookHostBranding` names the host *product* and supplies its brand mark - the
+identity the chrome labels itself with. The About card reads `hostName` and
+`hostTagline`; the show/hide hotkey label and the menu-bar fallback read
+`hostName`; the `mark` closure replaces the OpenNook glyph everywhere the chrome
+draws it (the top-bar leading cluster when no `leadingIcon` is set, the About
+card, and the menu-bar status icon).
+
+```swift
+configuration.branding = NookHostBranding(
+    hostName: "ContextNook",
+    hostTagline: "A focused notch app.",
+    mark: { size, color in AnyView(MyMark(color: color).frame(width: size, height: size)) }
+)
+```
+
+The brand mark is a `NookBrandMark` closure - `@Sendable @MainActor (size, color)
+-> AnyView`. It is handed a point size and the resolved tint, and the host returns
+any SwiftUI view sized to fit. A minimal mark from `Examples/ChromeNook/main.swift`:
+
+```swift
+struct SparkMark: View {
+    var color: Color
+    var body: some View {
+        Image(systemName: "sparkle")
+            .resizable()
+            .scaledToFit()
+            .foregroundStyle(color)
+    }
+}
+```
+
+`hostTagline` is optional; leaving it `nil` falls back to the framework's stock
+line describing the host as built with OpenNook. Leaving `mark` `nil` keeps the
+OpenNook `NookMarkView` - the minimal notch arc plus center dot. `NookHostBranding`
+is `Equatable` on its strings only (a closure can't be compared), so two brandings
+are equal when their `hostName` and `hostTagline` match.
+
+To turn the framework's menu-bar item off entirely - for a host that owns its own
+menu-bar presence or wants none - set `showsMenuBarExtra`:
+
+```swift
+configuration.showsMenuBarExtra = false
+```
+
+This drops the "Show ..." / Settings / Quit fallback the framework otherwise
+installs. Like the other host-level seams, on the single-module path
+`branding` and `showsMenuBarExtra` forward onto the synthesized host; a
+multi-module host sets `branding` on `NookHostConfiguration` directly (see the
+[host branding](/guides/multiple-modules/#host-branding) section).
+
+## Top-bar trailing items
+
+`setTopBarTrailingItems` registers host actions for the top bar's trailing
+cluster. They render immediately to the left of the framework's keep-open lock
+and gear, so the order reads host items, then lock, then gear. The items render
+inside the same chrome environment as the rest of the top bar, so they can
+observe `AppState` via `@EnvironmentObject` and read the palette via
+`@Environment(\.nookResolvedTheme)`:
+
+```swift
+configuration.setTopBarTrailingItems { ChromeTrailingActions() }
+
+struct ChromeTrailingActions: View {
+    @EnvironmentObject private var appState: AppState
+    @Environment(\.nookResolvedTheme) private var theme
+
+    var body: some View {
+        Button {
+            appState.showStatus("Heads up - warning posted from the top bar.",
+                                 severity: .warning)
+        } label: {
+            Image(systemName: "bell")
+                .font(.system(size: 11, weight: .semibold))
+                .foregroundStyle(theme.headerInactiveIcon)
+                .frame(width: 24, height: 24)
+        }
+        .buttonStyle(.plain)
+        .help("Post a warning status")
+    }
+}
+```
+
+Space is tight. The top bar runs *under* the physical notch on a notched display,
+so anything between the notch's edges is hardware-clipped, and the trailing
+cluster has only roughly 80-100pt of usable width at the 480-520pt expanded
+widths. Keep these to compact glyph-style buttons matching the lock and gear
+weight - not wide labeled pills. Leaving `trailingItems` unset reproduces the
+framework chrome exactly: just the lock and gear.
+
+## Top-bar width: `.contentColumn`
+
+`topBar.width` controls how the icon row spans the expanded content column. It
+defaults to `.contentColumn`, which is usually what you want:
+
+```swift
+public enum Width: Sendable, Equatable {
+    case contentColumn  // default
+    case intrinsic
+}
+```
+
+- `.contentColumn` (the default) gives the leading and trailing clusters the full
+  column width, aligning trailing icons to the same `nookContentInsets` gutter on
+  the right that host home rows use. This is what makes your trailing items line
+  up with content below them.
+- `.intrinsic` reproduces the legacy shrink-wrapped bar: the clusters shrink to
+  their icons and center when narrower than the column.
+
+```swift
+configuration.topBar.width = .intrinsic  // opt out of the content-column alignment
+```
+
+## Status banner
+
+The framework renders a transient status banner under the top bar, driven by
+`AppState.status`. Post to it from any `AppState` handle with `showStatus`:
+
+```swift
+public func showStatus(_ message: String, severity: NookStatusSeverity = .error)
+```
+
+`NookStatusSeverity` has four cases - `.error`, `.warning`, `.info`, `.success` -
+each selecting the banner's SF Symbol (an error reads differently from a success).
+The framework keeps the banner on its minimal palette: the glyph is tinted with
+the resolved theme's accent rather than inventing semantic red/green tokens, and
+the severity distinction is carried by the symbol. A host that wants colored
+severity supplies its own banner content or theme.
+
+```swift
+appState.showStatus("Imported 3 files", severity: .success)
+appState.showStatus("Could not reach the server", severity: .error)
+```
+
+The status is tied to a single nook session - it is cleared on the next
+show/toggle, or by the banner's dismiss button. (Durable failures, like a failed
+hotkey registration, use a separate channel so they outlive the session.)
+
+To suppress the framework banner - for a host that surfaces status inside its own
+home content - turn it off:
+
+```swift
+configuration.topBar.showsStatusBanner = false  // default true
+```
+
+`showStatus` still updates `AppState.status` either way, so a host that renders
+its own banner can read the message and severity directly from
+`@EnvironmentObject var appState`.
+
+## See also
+
+- `Examples/ChromeNook/main.swift` - the working example this guide mirrors:
+  launch defaults, chrome behavior, labels/metrics/motion, a custom brand mark,
+  trailing items, and the status banner in one host.
+- [Settings chrome](/guides/settings-chrome/) - the top-bar visibility flags
+  (`showsTopBar`, `showsSettings`) and the leading cluster.
+- [Theming](/guides/theming/) - the chrome palette, `accent`, and `fontDesign`
+  that these seams render against.
+- [Multiple modules](/guides/multiple-modules/) - where `preferenceDefaults`,
+  `chromeBehavior`, and `branding` live on `NookHostConfiguration` for a
+  multi-module host.

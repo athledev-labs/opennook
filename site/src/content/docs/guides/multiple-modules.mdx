@@ -78,6 +78,55 @@ host.moduleSwitcherPlacement = .menuBar        // default
 - `.none` - no on-screen switcher anywhere. Switching is reachable only through
   the hotkeys.
 
+## Module drill-in breadcrumb
+
+The switcher names the active *module*; `AppState.moduleBreadcrumb` names where
+the user is *inside* it. When a module drills into a sub-screen - a selected
+deck, an open document, a chosen profile - set `moduleBreadcrumb` to a short
+label and the top bar renders it after the leading title as
+`[icon] Module  >  Breadcrumb`, so the chrome reflects what the user is actually
+looking at instead of the module's static name. Set it back to `nil` to clear.
+
+```swift
+struct DeckList: View {
+    @EnvironmentObject private var appState: AppState
+
+    var body: some View {
+        ForEach(decks) { deck in
+            Button(deck.name) {
+                openDeck(deck)
+                appState.moduleBreadcrumb = deck.name   // drilled in
+            }
+        }
+    }
+}
+```
+
+Pushing a breadcrumb changes one thing in the chrome beyond the label: the
+leading glyph stops being a static module mark and becomes a back control. On
+home with no breadcrumb the title sits next to its icon; once a breadcrumb is
+set the persistent title collapses and the glyph - now a `chevron.left` when the
+module has no leading icon - clears `moduleBreadcrumb` when tapped. The
+framework only clears the property; it does not touch the module's own
+navigation. The module observes the clear and pops its own sub-state:
+
+```swift
+.onChange(of: appState.moduleBreadcrumb) { _, breadcrumb in
+    if breadcrumb == nil {
+        popToRoot()   // the chrome's back tap cleared it; mirror that here
+    }
+}
+```
+
+This is a soft state hint, not a view-mode change. It does not affect
+`AppState.viewMode` or the home/Settings routing - a breadcrumb can be set while
+the home view is showing, and entering Settings takes over the same leading slot
+with its own breadcrumb until the user backs out. The label is constrained to
+the pre-notch region: it is capped at `metrics.breadcrumbMaxWidth` (see
+[Theming](/guides/theming/) for the chrome `metrics` knobs) and fades out at its
+trailing edge rather than overrunning the notch, so a long sub-context label
+never collides with the camera housing. Keep the labels short for that reason.
+
 ## Descriptors and modules
 
 A module has two parts: a cheap **descriptor** (the identity the switcher and
@@ -207,6 +256,73 @@ process-global container.
 Register a key once per construction. The double-register guard traps in
 debug; in release the last writer wins. If you genuinely need to replace a
 service later, use the subscript form (`services[Key.self] = newValue`).
+
+## File pickers from a module
+
+A module that imports or exports files should not roll its own `NSOpenPanel`.
+The host is an agent app (`LSUIElement`) whose only window is a non-activating
+panel, so at the moment a module asks for a file the app is *inactive*: a panel
+presented by an inactive agent comes up non-key, can appear behind the frontmost
+app, and its sidebar stops responding to clicks. The host owns the fix once and
+hands every module a ready picker through services.
+
+`NookFilePicker` is registered into every module's `AppServices` automatically
+when its context is built - alongside the presentation-pinning broker - so you
+never wire it yourself. Resolve it from the `\.appServices` environment via
+`NookFilePickerKey` and call `open` or `save`:
+
+```swift
+struct ImportButton: View {
+    @Environment(\.appServices) private var services
+
+    var body: some View {
+        Button("Import") {
+            let picker = services.resolve(NookFilePickerKey.self)
+            Task {
+                guard let selection = await picker.open(
+                    .init(allowedContentTypes: [.pdf], allowsMultipleSelection: true)
+                ) else { return }
+                selection.withAccess { urls in store.accept(urls) }
+            }
+        }
+    }
+}
+```
+
+Both `open(_:)` and `save(_:)` are `async` and return a `NookFileSelection?` -
+`nil` when the user cancels or a panel is already up (only one panel is
+presented at a time). `open` takes `NookOpenOptions`; `save` takes
+`NookSaveOptions`. The picker does two things a hand-rolled panel cannot:
+
+- **It activates the app before presenting,** so the panel comes up key and
+  interactive even though the click on the notch never activated the agent.
+- **It holds the surface open for the panel's whole lifetime.** A picker is a
+  separate AppKit panel outside the notch window, so while it is up the pointer
+  has left the notch; without a pin the surface would auto-compact and a
+  competing module's arbiter claim could be granted underneath. The picker pins
+  the surface for the panel's lifetime and releases the pin once it closes -
+  the same pin a module's own transient presenter would take.
+
+A panel-returned URL comes back already security-scoped. The `NookFileSelection`
+owns that live access and stops it when the selection is released, so read the
+file's contents - or capture a `.withSecurityScope` bookmark to persist access
+across launches - inside `withAccess(_:)` while the selection is still alive.
+After it is released the URLs are path-level only and reads fail under the
+sandbox.
+
+> **Sandbox caveat.** Under the App Sandbox, the
+> `com.apple.security.files.user-selected.read-write` entitlement is what makes a
+> picked file readable - ship it (the host's entitlements template has it). And
+> under `swift run` the binary is unbundled and unsandboxed with no powerbox, so
+> the panel cannot enter TCC-protected folders (Downloads, Desktop, Documents);
+> run the signed `.app` or grant your terminal Full Disk Access. That is a
+> dev-loop artifact, not a shipping limitation. See [Shipping](/guides/shipping/)
+> for the full entitlement list.
+
+For module tests, register your own `NookFilePresenting` fake against
+`NookFilePickerKey` - `NSOpenPanel` cannot run headless, and the key's default
+value is a deliberately inert picker that traps in debug if it is ever resolved
+without the host registration.
 
 ## The module-switch lifecycle
 
