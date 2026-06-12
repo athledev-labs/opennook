@@ -211,7 +211,8 @@ ship.
 
 `NookConfiguration` exposes the rest of the chrome through additive, non-breaking
 seams - every default reproduces the framework exactly, so you opt in only where
-you need to.
+you need to. The [Chrome customization guide](https://opennook.dev/guides/chrome-customization/)
+covers each seam in full; the headlines are below.
 
 **Launch defaults.** Ship your own out-of-box appearance, global hotkey, and
 display target. Seed-only: a value the user has changed in Settings always wins,
@@ -225,6 +226,11 @@ configuration.preferenceDefaults = NookPreferenceDefaults(
     )
 )
 ```
+
+`surfaceStyle` is `.solid`, `.translucent`, or `.liquidGlass` - the real macOS 26
+Liquid Glass material, with a pre-Tahoe approximation so the package still builds
+and runs on earlier systems. See
+[Surface materials](https://opennook.dev/guides/surface-materials/).
 
 **Chrome behavior.** Hover side-effects, the cold-launch shimmer, and the
 appearance→backdrop mapping:
