@@ -330,12 +330,19 @@ public final class NookFilePicker: NookFilePresenting {
 /// never hold the surface. Module tests can register their own ``NookFilePresenting``
 /// fake against this key, since `NSOpenPanel` cannot run headless.
 public struct NookFilePickerKey: ServiceKey {
-    public static let defaultValue: any NookFilePresenting = UnregisteredFilePicker()
+    // `ServiceKey.defaultValue` is a nonisolated static, but `any NookFilePresenting` is
+    // @MainActor-isolated. `nonisolated(unsafe)` is sound here: the default is an inert,
+    // immutable singleton (it only asserts and returns nil), so reading this reference from
+    // any isolation is safe - calling its @MainActor methods stays gated by the protocol.
+    public nonisolated(unsafe) static let defaultValue: any NookFilePresenting = UnregisteredFilePicker()
 }
 
 /// Inert stand-in used as ``NookFilePickerKey``'s default. Never presents anything.
 private struct UnregisteredFilePicker: NookFilePresenting {
-    init() {}
+    // Nonisolated so the nonisolated `NookFilePickerKey.defaultValue` static can construct
+    // it: the type infers @MainActor from the protocol, but an empty inert value needs no
+    // isolation to build. The @MainActor `open`/`save` witnesses below are unaffected.
+    nonisolated init() {}
 
     func open(_ options: NookOpenOptions) async -> NookFileSelection? {
         assertionFailure(
