@@ -9,12 +9,12 @@ import CoreAudio
 import XCTest
 @testable import NookComponents
 
-/// A fully controllable ``VolumeReading`` — no live audio device. Lets the tests drive
+/// A fully controllable ``VolumeReading`` - no live audio device. Lets the tests drive
 /// the default-device, volume, and mute reads deterministically.
 ///
 /// `@unchecked Sendable` so a test can mutate it after the observer has captured it.
 /// That is sound here: the observer only reads through it on the main actor, and the
-/// tests are `@MainActor` too — there is no real concurrency.
+/// tests are `@MainActor` too - there is no real concurrency.
 private final class FakeVolumeReader: VolumeReading, @unchecked Sendable {
     var device: AudioDeviceID? = AudioDeviceID(1)
     var volume: Double? = 0.5
@@ -30,7 +30,7 @@ final class SystemVolumeObserverTests: XCTestCase {
     // MARK: - resolveVolumeFallback (pure: main-element vs per-channel average)
 
     func testFallbackPrefersMainElementScalar() {
-        // A main-element scalar wins outright — channel scalars are ignored.
+        // A main-element scalar wins outright - channel scalars are ignored.
         XCTAssertEqual(resolveVolumeFallback(mainScalar: 0.4, channelScalars: [0.1, 0.9]), 0.4)
     }
 
@@ -44,7 +44,7 @@ final class SystemVolumeObserverTests: XCTestCase {
     }
 
     func testFallbackReturnsNilWhenNothingAvailable() {
-        // Neither a main scalar nor any channel scalar — unreadable.
+        // Neither a main scalar nor any channel scalar - unreadable.
         XCTAssertNil(resolveVolumeFallback(mainScalar: nil, channelScalars: []))
     }
 
@@ -71,7 +71,7 @@ final class SystemVolumeObserverTests: XCTestCase {
     @MainActor
     func testObserverClampsVolumeIntoUnitRange() {
         // A reader reporting an out-of-range value (a quirky device, a stale read) must
-        // not leak past `0...1` — the observer clamps before publishing.
+        // not leak past `0...1` - the observer clamps before publishing.
         let high = FakeVolumeReader()
         high.volume = 1.7
         XCTAssertEqual(SystemVolumeObserver(reader: high).volume, 1.0)
@@ -83,7 +83,7 @@ final class SystemVolumeObserverTests: XCTestCase {
 
     @MainActor
     func testObserverReportsZeroWhenNoDefaultDevice() {
-        // No default output device available — the observer reports a silent, unmuted
+        // No default output device available - the observer reports a silent, unmuted
         // baseline rather than stale state.
         let reader = FakeVolumeReader()
         reader.device = nil
@@ -98,7 +98,7 @@ final class SystemVolumeObserverTests: XCTestCase {
     @MainActor
     func testObserverRebindsToNewDefaultDevice() {
         // Bind to a device with a known level, then swap the default device out from
-        // under the observer and trigger a rebind — it must follow the new device.
+        // under the observer and trigger a rebind - it must follow the new device.
         let reader = FakeVolumeReader()
         reader.device = AudioDeviceID(1)
         reader.volume = 0.25
@@ -133,7 +133,7 @@ final class SystemVolumeObserverTests: XCTestCase {
         XCTAssertEqual(observer.removedListenerCountForTesting, 0)
 
         // A rebind must remove the two device listeners and re-add a fresh pair, so
-        // adds increase by 2 and removes by 2 — net no leak.
+        // adds increase by 2 and removes by 2 - net no leak.
         reader.device = AudioDeviceID(2)
         observer.rebindForTesting()
         XCTAssertEqual(observer.addedListenerCountForTesting, 5)

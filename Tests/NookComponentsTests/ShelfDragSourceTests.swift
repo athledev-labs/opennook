@@ -9,7 +9,7 @@ import UniformTypeIdentifiers
 import XCTest
 @testable import NookComponents
 
-/// Pins the file-promise drag-out plumbing — the bookmark-resolve + scoped-copy path
+/// Pins the file-promise drag-out plumbing - the bookmark-resolve + scoped-copy path
 /// the receiver eventually triggers. The receiver-side trigger itself (AppKit calling
 /// the registered `NSItemProvider` representation) is an integration concern out of
 /// unit-test reach; what we CAN test deterministically is the write closure.
@@ -46,7 +46,7 @@ final class ShelfDragSourceTests: XCTestCase {
         XCTAssertEqual(written, Data("OPENNOOK".utf8))
     }
 
-    /// An unresolvable bookmark produces `ShelfDragError.unresolvable` — the receiver
+    /// An unresolvable bookmark produces `ShelfDragError.unresolvable` - the receiver
     /// gets a meaningful error rather than a silent failure or a crash.
     func testWriteShelfItemReportsErrorWhenSourceUnresolvable() throws {
         let stage = try makeTempStage()
@@ -122,7 +122,7 @@ final class ShelfDragSourceTests: XCTestCase {
                     // AppKit copies the file out before calling the completion; the URL
                     // here is a coordinator-owned URL pointing at the OS-managed copy.
                     // What we care about is that the call resolves with a URL and no
-                    // error — i.e. the staging path was created and the copy succeeded.
+                    // error - i.e. the staging path was created and the copy succeeded.
                     if error != nil {
                         continuation.resume(returning: nil)
                     } else {

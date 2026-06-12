@@ -5,11 +5,11 @@
 // you may not use this file except in compliance with the License.
 // A copy is included at /LICENSE in the repository root.
 
-// VolumeNook — an ambient volume glyph in the compact pill (NookComponents).
+// VolumeNook - an ambient volume glyph in the compact pill (NookComponents).
 //
 // SystemVolumeObserver tracks the default output device via public CoreAudio APIs;
 // NookVolumeIndicator renders the level as a compact-slot glyph. Run with
-// `swift run VolumeNook`, leave the nook collapsed, and change the volume — the glyph
+// `swift run VolumeNook`, leave the nook collapsed, and change the volume - the glyph
 // to the right of the notch updates. It shows the level; it does not replace Apple's
 // volume HUD.
 
@@ -17,7 +17,7 @@ import NookApp
 import NookComponents
 import SwiftUI
 
-// `NookApp.main { … }` builds the configuration on the main actor, so the
+// `NookApp.main { ... }` builds the configuration on the main actor, so the
 // main-actor-isolated SystemVolumeObserver can be constructed here.
 NookApp.main {
     // One observer, rendered in the compact-trailing slot.

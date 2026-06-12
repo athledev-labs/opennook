@@ -9,7 +9,7 @@ import SwiftUI
 import XCTest
 @testable import NookKit
 
-/// Seam C — chrome labels, layout metrics, in-panel motion, and the status/severity
+/// Seam C - chrome labels, layout metrics, in-panel motion, and the status/severity
 /// channel. Defaults reproduce today's chrome; the configuration carries host overrides.
 @MainActor
 final class NookChromeStyleTests: XCTestCase {

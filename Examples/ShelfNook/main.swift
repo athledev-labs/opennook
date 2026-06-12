@@ -5,7 +5,7 @@
 // you may not use this file except in compliance with the License.
 // A copy is included at /LICENSE in the repository root.
 
-// ShelfNook — a file shelf in the notch, from the NookComponents add-on.
+// ShelfNook - a file shelf in the notch, from the NookComponents add-on.
 //
 // Drag files onto the notch and they collect in the shelf; drag them back out to
 // Finder or another app. The shelf persists across launches. Run with
@@ -15,7 +15,7 @@ import NookApp
 import NookComponents
 import SwiftUI
 
-// `NookApp.main { … }` builds the configuration on the main actor, so the
+// `NookApp.main { ... }` builds the configuration on the main actor, so the
 // main-actor-isolated ShelfStore can be constructed here.
 NookApp.main {
     // One shelf model, shared between the home view that renders it and the drop
@@ -25,19 +25,19 @@ NookApp.main {
     var configuration = NookConfiguration()
     configuration.setHome { ShelfHome(store: shelf) }
     // `NookConfiguration.onFileDrop` is typed `@Sendable @MainActor ([URL]) -> Bool`
-    // — the closure runs on the main actor, so it can call `ShelfStore.accept`
+    // - the closure runs on the main actor, so it can call `ShelfStore.accept`
     // directly without any `assumeIsolated` hop.
     configuration.onFileDrop = { urls in shelf.accept(urls) }
     return configuration
 }
 
 /// The shelf, with click-to-import folded into its drop zone via the host's
-/// ``NookFilePicker`` — the picker-driven counterpart to drag-and-drop, in one surface.
+/// ``NookFilePicker`` - the picker-driven counterpart to drag-and-drop, in one surface.
 ///
 /// Picker caveat: `swift run` produces an unbundled, unsandboxed binary with no
 /// powerbox, so the open panel cannot enter TCC-protected folders (Downloads, etc.).
 /// Build and run the signed `Nook.app` (the `NookHostApp` Xcode target) to exercise the
-/// picker for real — see the Shipping checklist in README.md.
+/// picker for real - see the Shipping checklist in README.md.
 private struct ShelfHome: View {
     let store: ShelfStore
     @Environment(\.appServices) private var services

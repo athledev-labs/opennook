@@ -12,7 +12,7 @@ import XCTest
 
 /// Pins ``NookBackdropMapping`` to its rendering contract. The mapping is the only
 /// producer of ``NookBackdrop`` in the framework; if these change, downstream renders
-/// change too — so they're worth pinning explicitly.
+/// change too - so they're worth pinning explicitly.
 final class NookBackdropMappingTests: XCTestCase {
     private func preferences(
         palette: NookChromePalette,
@@ -39,7 +39,7 @@ final class NookBackdropMappingTests: XCTestCase {
         XCTAssertEqual(backdrop, .solid(.white))
     }
 
-    /// Reduce Transparency overrides the translucent style — the chrome must avoid
+    /// Reduce Transparency overrides the translucent style - the chrome must avoid
     /// `NSVisualEffectView` entirely.
     func testReduceTransparencyForcesSolidEvenWhenTranslucent() {
         let backdrop = NookBackdropMapping.notchBackdrop(
@@ -110,7 +110,7 @@ final class NookBackdropMappingTests: XCTestCase {
         XCTAssertEqual(backdrop, expected)
     }
 
-    /// The framework default — what every host gets before any mapping runs — must be
+    /// The framework default - what every host gets before any mapping runs - must be
     /// the solid-black fill so cold-launch rendering matches the historical chrome.
     func testDefaultBackdropIsSolidBlack() {
         XCTAssertEqual(NookBackdrop.solidBlack, .solid(.black))
@@ -150,7 +150,7 @@ final class NookBackdropMappingTests: XCTestCase {
         XCTAssertEqual(backdrop, expected)
     }
 
-    /// Reduce Transparency collapses Liquid Glass to a solid fill too — the glass
+    /// Reduce Transparency collapses Liquid Glass to a solid fill too - the glass
     /// material must not render when the user has opted out of translucency.
     func testReduceTransparencyForcesSolidEvenWhenLiquidGlass() {
         let backdrop = NookBackdropMapping.notchBackdrop(

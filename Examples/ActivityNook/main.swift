@@ -5,7 +5,7 @@
 // you may not use this file except in compliance with the License.
 // A copy is included at /LICENSE in the repository root.
 
-// ActivityNook — the live-activity queue from the NookComponents add-on.
+// ActivityNook - the live-activity queue from the NookComponents add-on.
 //
 // A NookActivityQueue collects transient activities and presents them one at a time,
 // briefly taking over the expanded surface for each. This demo enqueues a sample
@@ -21,7 +21,7 @@ import NookApp
 import NookComponents
 import SwiftUI
 
-/// Shown when the queue is idle — the host's normal home content.
+/// Shown when the queue is idle - the host's normal home content.
 struct ActivityNookHome: View {
     @Environment(\.nookResolvedTheme) private var theme
 
@@ -43,7 +43,7 @@ struct ActivityNookHome: View {
 }
 
 /// A module that owns a `NookActivityQueue`. Because the queue is a transient surface
-/// presenter, the module must `quiesce()` it before being switched away — that is the
+/// presenter, the module must `quiesce()` it before being switched away - that is the
 /// purpose of `prepareForSwitchAway()`.
 @MainActor
 final class ActivityModule: NookModule {

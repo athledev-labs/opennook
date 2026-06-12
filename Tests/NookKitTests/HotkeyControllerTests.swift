@@ -12,13 +12,13 @@ import XCTest
 /// Bookkeeping coverage for ``HotkeyController``. The Carbon-level
 /// `RegisterEventHotKey` call may or may not succeed depending on the test
 /// environment (an XCTest binary often lacks a proper app context), but the
-/// controller's own dispatch table — what `register`/`unregister`/`unregisterAll`
-/// keep — is fully observable through the internal test seam and is what these
+/// controller's own dispatch table - what `register`/`unregister`/`unregisterAll`
+/// keep - is fully observable through the internal test seam and is what these
 /// tests pin. The Carbon-event delivery path itself is integration-tested by
 /// `AppCoordinatorTests`' real hotkey registration.
 @MainActor
 final class HotkeyControllerTests: XCTestCase {
-    /// Carbon key code for "F19" — a function key that almost certainly isn't bound,
+    /// Carbon key code for "F19" - a function key that almost certainly isn't bound,
     /// and is unlikely to fire while tests run.
     private let f19KeyCode: UInt32 = 80
 
@@ -38,7 +38,7 @@ final class HotkeyControllerTests: XCTestCase {
         XCTAssertEqual(controller.registeredIDsForTesting, ["toggle", "cycle"])
     }
 
-    /// Re-registering an existing id replaces the prior registration in place — and
+    /// Re-registering an existing id replaces the prior registration in place - and
     /// mints a FRESH Carbon hotkey id so a stale Carbon event in flight from the
     /// old binding cannot resolve to the new handler.
     func testRegisterReplacingSameIDMintsFreshCarbonID() {
@@ -59,7 +59,7 @@ final class HotkeyControllerTests: XCTestCase {
         )
     }
 
-    /// Re-registering also REPLACES the dispatched handler — so a stale handler
+    /// Re-registering also REPLACES the dispatched handler - so a stale handler
     /// from the previous registration cannot fire under the same id.
     func testRegisterReplacingSameIDReplacesDispatchedHandler() {
         let controller = HotkeyController()
@@ -87,7 +87,7 @@ final class HotkeyControllerTests: XCTestCase {
         XCTAssertFalse(controller.registeredIDsForTesting.contains("toggle"))
     }
 
-    /// Unregistering an unknown id is a no-op — does not throw, does not affect siblings.
+    /// Unregistering an unknown id is a no-op - does not throw, does not affect siblings.
     func testUnregisterUnknownIDIsNoOp() {
         let controller = HotkeyController()
         _ = controller.register("toggle", keyCode: f19KeyCode, modifiers: UInt32(cmdKey)) {}

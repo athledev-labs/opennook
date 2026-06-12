@@ -11,7 +11,7 @@ import XCTest
 @testable import NookKit
 
 /// Host-global chrome behavior: hover side-effects, the cold-launch shimmer opt-out, and
-/// the appearance→backdrop mapping override — all defaulting to today's behavior and
+/// the appearance->backdrop mapping override - all defaulting to today's behavior and
 /// threaded from the host (or, single-module, forwarded from `NookConfiguration`).
 ///
 /// `@MainActor`: `AppCoordinator` / `ModuleHost` are main-actor isolated.
@@ -34,7 +34,7 @@ final class NookChromeBehaviorTests: XCTestCase {
     }
 
     /// Defaults reproduce the framework: no hover side-effects, the shimmer plays, and no
-    /// backdrop override — and both configuration structs default to that.
+    /// backdrop override - and both configuration structs default to that.
     func testDefaultsReproduceFramework() {
         let behavior = NookChromeBehavior.default
         XCTAssertEqual(behavior.hoverBehavior, [])
@@ -90,7 +90,7 @@ final class NookChromeBehaviorTests: XCTestCase {
         XCTAssertEqual(surface.backdrop, .solid(.red))
     }
 
-    /// Without an override, the framework mapping applies — a `.dark` + `.solid`
+    /// Without an override, the framework mapping applies - a `.dark` + `.solid`
     /// appearance maps to opaque black regardless of the system scheme.
     func testDefaultBackdropUsesFrameworkMapping() {
         let appState = AppState()

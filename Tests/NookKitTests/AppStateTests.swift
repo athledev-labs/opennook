@@ -47,7 +47,7 @@ final class AppStateTests: XCTestCase {
         XCTAssertEqual(state.hotkeyRegistrationFailures["toggle"], failure)
     }
 
-    /// A hotkey-registration failure must survive a transient-status reset — unlike
+    /// A hotkey-registration failure must survive a transient-status reset - unlike
     /// `errorMessage`, it outlives a single nook session.
     func testHotkeyRegistrationFailureSurvivesTransientReset() {
         let state = AppState()
@@ -82,7 +82,7 @@ final class AppStateTests: XCTestCase {
         )
     }
 
-    /// Failures are tracked per registration id — one shortcut's failure never
+    /// Failures are tracked per registration id - one shortcut's failure never
     /// overwrites another's, and clearing one leaves the other intact.
     func testHotkeyRegistrationFailuresAreTrackedPerID() {
         let state = AppState()

@@ -119,7 +119,7 @@ final class NookPresentationPinningTests: XCTestCase {
 
     func testServiceKeyDefaultValueIsAStableInstance() {
         // A test or a context that never went through the registry resolves the
-        // key to the static default — verify that resolve returns a usable
+        // key to the static default - verify that resolve returns a usable
         // (non-trapping) broker.
         let services = AppServices()
         let resolved = services.resolve(NookPresentationPinningKey.self)

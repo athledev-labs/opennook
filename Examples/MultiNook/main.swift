@@ -5,7 +5,7 @@
 // you may not use this file except in compliance with the License.
 // A copy is included at /LICENSE in the repository root.
 
-// MultiNook — one host process, several interchangeable notch apps.
+// MultiNook - one host process, several interchangeable notch apps.
 //
 // A NookHostConfiguration registers a set of modules; the host shows one at a time and
 // the user switches between them through the switcher strip at the top of the expanded
@@ -39,7 +39,7 @@ struct ModuleHome: View {
     }
 }
 
-/// A trivial service whose only job is to be resolved through `AppServices` — the
+/// A trivial service whose only job is to be resolved through `AppServices` - the
 /// counter module's persistence, lifted behind a type so its views need not know how
 /// the count is stored. Not actor-isolated: a `ServiceKey`'s `defaultValue` is
 /// nonisolated (the SwiftUI `EnvironmentKey` pattern), so its backing type must be too.
@@ -62,12 +62,12 @@ final class LaunchTracker: Sendable {
 }
 
 /// The `ServiceKey` the counter module registers its `LaunchTracker` against. Resolving
-/// `LaunchTrackerKey.self` is total — it falls back to `defaultValue` if unregistered.
+/// `LaunchTrackerKey.self` is total - it falls back to `defaultValue` if unregistered.
 struct LaunchTrackerKey: ServiceKey {
     static let defaultValue: LaunchTracker = .unregistered
 }
 
-/// A module that carries its own product state — a launch counter persisted in the
+/// A module that carries its own product state - a launch counter persisted in the
 /// module's isolated `UserDefaults` suite, exposed to its views through the type-safe
 /// `AppServices` container keyed by `LaunchTrackerKey`. Shows the full `NookModule`
 /// protocol; the simpler modules below register a `NookConfiguration` closure directly.
@@ -104,7 +104,7 @@ final class CounterModule: NookModule {
 }
 
 /// The counter module's home view. It resolves the launch count out of the module's
-/// `AppServices` bag — never optional, thanks to `LaunchTrackerKey.defaultValue`.
+/// `AppServices` bag - never optional, thanks to `LaunchTrackerKey.defaultValue`.
 struct CounterHome: View {
     @Environment(\.appServices) private var services
 

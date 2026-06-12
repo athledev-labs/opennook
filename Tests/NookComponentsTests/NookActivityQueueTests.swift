@@ -10,7 +10,7 @@ import XCTest
 @testable import NookComponents
 import NookKit
 
-/// A `NookSurfacePresenting` stand-in — no real window, fully controllable engagement.
+/// A `NookSurfacePresenting` stand-in - no real window, fully controllable engagement.
 @MainActor
 private final class FakePresenter: NookSurfacePresenting {
     private let engagement = CurrentValueSubject<Bool, Never>(false)
@@ -19,7 +19,7 @@ private final class FakePresenter: NookSurfacePresenting {
     private(set) var endCount = 0
     private var nextToken = 0
 
-    /// When > 0, the next N `beginTransientPresentation(_:)` calls reject the takeover —
+    /// When > 0, the next N `beginTransientPresentation(_:)` calls reject the takeover - 
     /// simulating the user grabbing the surface in the pre-takeover race window.
     var rejectNextBegins = 0
 
@@ -93,7 +93,7 @@ final class NookActivityQueueTests: XCTestCase {
 
     @MainActor
     func testCoalescingKeyKeepsLatest() {
-        // No presenter bound — the queue holds activities without draining.
+        // No presenter bound - the queue holds activities without draining.
         let queue = instantQueue()
 
         queue.enqueue(NookActivity(coalescingKey: "sync", title: "First"))
@@ -133,13 +133,13 @@ final class NookActivityQueueTests: XCTestCase {
         try await Task.sleep(for: .milliseconds(50))
         XCTAssertEqual(presenter.beginCount, 0, "must not present while the user is engaged")
 
-        // Cooperative suspend: the drain task is NOT cancelled — it exits on its own
+        // Cooperative suspend: the drain task is NOT cancelled - it exits on its own
         // when the engagement-wait next polls (≤200ms) or when the current dwell ends.
         queue.suspend()
         await queue.drainTask?.value
         XCTAssertNil(queue.drainTask, "drain task cleared itself after the cooperative exit")
 
-        // Resume while still engaged — a fresh drain task spawns and re-parks in the
+        // Resume while still engaged - a fresh drain task spawns and re-parks in the
         // engagement wait. Disengage, then drain to completion.
         queue.resume()
         try await Task.sleep(for: .milliseconds(50))
@@ -153,7 +153,7 @@ final class NookActivityQueueTests: XCTestCase {
     }
 
     /// Regression: a `suspend()` issued *while an activity is dwelling on screen* must
-    /// let that dwell finish and the claim release normally — not cancel mid-dwell and
+    /// let that dwell finish and the claim release normally - not cancel mid-dwell and
     /// strand the arbiter token. The contract advertised by `suspend()` says the
     /// current activity finishes; this pins it.
     @MainActor
@@ -171,7 +171,7 @@ final class NookActivityQueueTests: XCTestCase {
         XCTAssertNotNil(queue.current)
 
         queue.suspend()
-        // suspend() must NOT cancel the drain task — the current dwell must complete.
+        // suspend() must NOT cancel the drain task - the current dwell must complete.
         await queue.drainTask?.value
 
         XCTAssertEqual(presenter.endCount, 1, "in-flight activity released its claim normally")
@@ -219,7 +219,7 @@ final class NookActivityQueueTests: XCTestCase {
             .sink { presented.append($0) }
 
         // A is enqueued first and is the one whose first takeover gets rejected.
-        // B is enqueued *before* the retry — at the same priority. FIFO-within-priority
+        // B is enqueued *before* the retry - at the same priority. FIFO-within-priority
         // means B presents before A's retry.
         queue.enqueue(NookActivity(priority: .normal, title: "A"))
         queue.enqueue(NookActivity(priority: .normal, title: "B"))
@@ -275,7 +275,7 @@ final class NookActivityQueueTests: XCTestCase {
         XCTAssertTrue(queue.isSuspended)
     }
 
-    /// `quiesce()` is idempotent and safe on an idle queue — a second call is a no-op.
+    /// `quiesce()` is idempotent and safe on an idle queue - a second call is a no-op.
     @MainActor
     func testQuiesceIsIdempotent() async {
         let queue = instantQueue()

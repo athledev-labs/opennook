@@ -20,7 +20,7 @@ import SwiftUI
 @MainActor
 final class FakeNookSurface: NookSurfaceDriving {
     /// Every state this surface has transitioned *into*, in order. The constructor's
-    /// initial `.hidden` is not recorded — only transitions driven by the coordinator.
+    /// initial `.hidden` is not recorded - only transitions driven by the coordinator.
     private(set) var transitions: [NookState] = []
 
     private let stateSubject = CurrentValueSubject<NookState, Never>(.hidden)
@@ -68,7 +68,7 @@ final class FakeNookSurface: NookSurfaceDriving {
     var backdrop: NookBackdrop = .solidBlack
     var transitionConfiguration = NookTransitionConfiguration()
 
-    /// Mirrors the real surface's `hasLiveWindow` — tests flip this to drive the
+    /// Mirrors the real surface's `hasLiveWindow` - tests flip this to drive the
     /// coordinator's display-change-while-visible branch without mounting a real
     /// window.
     var hasLiveWindow: Bool = false
@@ -84,7 +84,7 @@ final class FakeNookSurface: NookSurfaceDriving {
         feedbackCount += 1
     }
 
-    /// Applies a state change, records it, and fires the matching lifecycle hook —
+    /// Applies a state change, records it, and fires the matching lifecycle hook - 
     /// mirroring the real surface, whose hooks fire on every distinct transition.
     private func transition(to newState: NookState) {
         guard newState != stateSubject.value else { return }

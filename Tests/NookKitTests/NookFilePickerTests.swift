@@ -15,7 +15,7 @@ import XCTest
 /// The `NSOpenPanel` / `NSSavePanel` presentation itself cannot run in a headless test
 /// (it shows real UI and needs an active app), so it is exercised manually against the
 /// signed app. The ``NookFilePresenting`` protocol is what lets *module* code that calls
-/// the picker be tested with a fake — demonstrated by ``testProtocolSeamAcceptsAFake``.
+/// the picker be tested with a fake - demonstrated by ``testProtocolSeamAcceptsAFake``.
 @MainActor
 final class NookFilePickerTests: XCTestCase {
     // MARK: - NookFileSelection
@@ -54,8 +54,8 @@ final class NookFilePickerTests: XCTestCase {
 
     // MARK: - Host wiring
 
-    /// A module's resolved picker is the registry's single shared instance — not the
-    /// inert default — so it can actually present and hold the surface.
+    /// A module's resolved picker is the registry's single shared instance - not the
+    /// inert default - so it can actually present and hold the surface.
     func testModuleContextResolvesTheRegistrySharedPicker() {
         let registry = makeRegistry(ids: ["A"])
         let resolved = registry.context(for: "A")?.services.resolve(NookFilePickerKey.self)
@@ -65,7 +65,7 @@ final class NookFilePickerTests: XCTestCase {
         XCTAssertTrue(resolvedPicker === registry.filePicker, "every module shares the one process-wide picker")
     }
 
-    /// Two modules in the same host resolve the same picker instance — the guarantee
+    /// Two modules in the same host resolve the same picker instance - the guarantee
     /// that lets it serialize presentation process-wide.
     func testAllModulesShareOnePicker() {
         let registry = makeRegistry(ids: ["A", "B"])
@@ -77,7 +77,7 @@ final class NookFilePickerTests: XCTestCase {
     }
 
     /// An `AppServices` that never went through the host registry falls back to the
-    /// inert default — total resolution, never `nil`, and not a live picker.
+    /// inert default - total resolution, never `nil`, and not a live picker.
     func testUnregisteredServicesResolveToInertDefault() {
         let resolved = AppServices().resolve(NookFilePickerKey.self)
         XCTAssertNil(resolved as? NookFilePicker, "the default is the inert stand-in, not a real picker")

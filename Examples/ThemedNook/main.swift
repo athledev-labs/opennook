@@ -5,7 +5,7 @@
 // you may not use this file except in compliance with the License.
 // A copy is included at /LICENSE in the repository root.
 
-// ThemedNook — a host-supplied theme plus lifecycle hooks.
+// ThemedNook - a host-supplied theme plus lifecycle hooks.
 //
 // Shows `NookConfiguration.theme` (a custom `NookResolvedTheme` paints the chrome
 // labels) and the `onExpand` / `onCompact` callbacks. Run with `swift run ThemedNook`
@@ -15,7 +15,7 @@ import NookApp
 import SwiftUI
 
 /// A host-built palette. `NookResolvedTheme`'s public initializer accepts any colors;
-/// the framework recommends explicit values (not system-adaptive ones) — see the
+/// the framework recommends explicit values (not system-adaptive ones) - see the
 /// `NookResolvedTheme` type docs for why.
 enum SunsetTheme {
     @MainActor

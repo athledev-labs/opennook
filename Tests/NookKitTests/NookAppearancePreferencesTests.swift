@@ -37,7 +37,7 @@ final class NookAppearancePreferencesTests: XCTestCase {
         XCTAssertEqual(decoded, original)
     }
 
-    /// The Liquid Glass surface style must survive a JSON round-trip like any other —
+    /// The Liquid Glass surface style must survive a JSON round-trip like any other - 
     /// its raw value is the seam a saved preference is restored through.
     func testLiquidGlassSurfaceStyleRoundTripsThroughJSON() throws {
         let original = NookAppearancePreferences(surfaceStyle: .liquidGlass)
@@ -47,7 +47,7 @@ final class NookAppearancePreferencesTests: XCTestCase {
     }
 
     /// JSON written by an older build can be missing later-added fields. Decoding it must
-    /// fill those fields with defaults instead of throwing — otherwise upgrading would
+    /// fill those fields with defaults instead of throwing - otherwise upgrading would
     /// silently reset every saved setting.
     func testDecodeIsForwardCompatibleWithMissingFields() throws {
         let partialJSON = #"{"chromePalette":"dark"}"#

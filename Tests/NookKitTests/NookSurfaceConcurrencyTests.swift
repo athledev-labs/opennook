@@ -16,7 +16,7 @@ import XCTest
 ///
 /// These exercise `Nook`'s internal model without depending on a real display: the
 /// drag-session and generation logic is pure state, and `nookPanelDraggingEntered`
-/// only spawns a transition when a screen resolves — with no screen attached the
+/// only spawns a transition when a screen resolves - with no screen attached the
 /// session bookkeeping still runs and is what we assert on.
 @MainActor
 final class NookSurfaceConcurrencyTests: XCTestCase {
@@ -57,7 +57,7 @@ final class NookSurfaceConcurrencyTests: XCTestCase {
     }
 
     /// Every `draggingUpdated` forwards as another enter. Repeated enters must keep the
-    /// *original* snapshot — they are idempotent no-ops on session state.
+    /// *original* snapshot - they are idempotent no-ops on session state.
     func testRepeatedDragEntersPreserveOriginalSnapshot() {
         let nook = makeNook()
         let url = URL(fileURLWithPath: "/tmp/a")
@@ -71,7 +71,7 @@ final class NookSurfaceConcurrencyTests: XCTestCase {
         XCTAssertEqual(nook.dragSession, .active(stateBeforeEntry: .hidden))
     }
 
-    /// AppKit can deliver `draggingExited` *then* `draggingEnded` for one session — both
+    /// AppKit can deliver `draggingExited` *then* `draggingEnded` for one session - both
     /// route through `nookPanelDraggingExited`. The second call must be an idempotent
     /// no-op: the snapshot was consumed by the first, so the session stays idle and the
     /// prior state is not restored twice.
@@ -84,7 +84,7 @@ final class NookSurfaceConcurrencyTests: XCTestCase {
         XCTAssertEqual(nook.dragSession, .idle)
         XCTAssertFalse(nook.isDragInFlight)
 
-        // Out-of-order / duplicate end callback — must not corrupt state.
+        // Out-of-order / duplicate end callback - must not corrupt state.
         nook.nookPanelDraggingExited()
         XCTAssertEqual(nook.dragSession, .idle)
         XCTAssertFalse(nook.isDragInFlight)
@@ -113,7 +113,7 @@ final class NookSurfaceConcurrencyTests: XCTestCase {
         XCTAssertEqual(nook.dragSession, .idle)
         XCTAssertFalse(nook.isDragInFlight)
 
-        // AppKit's post-drop exit/end — idempotent no-op.
+        // AppKit's post-drop exit/end - idempotent no-op.
         nook.nookPanelDraggingExited()
         XCTAssertEqual(nook.dragSession, .idle)
     }
@@ -128,7 +128,7 @@ final class NookSurfaceConcurrencyTests: XCTestCase {
         XCTAssertFalse(nook.isDragInFlight)
     }
 
-    /// `isDragInFlight` is a strict mirror of `dragSession` — observers of the published
+    /// `isDragInFlight` is a strict mirror of `dragSession` - observers of the published
     /// bool see exactly the active/idle of the authoritative enum.
     func testIsDragInFlightMirrorsSession() {
         let nook = makeNook()
@@ -145,7 +145,7 @@ final class NookSurfaceConcurrencyTests: XCTestCase {
 
     /// `runTransition` claims a fresh generation synchronously and invalidates the prior
     /// one. A generation a transition's body captured is no longer `isCurrent` once a
-    /// newer transition has been claimed — this is the signal an in-flight `_hide`
+    /// newer transition has been claimed - this is the signal an in-flight `_hide`
     /// re-checks to bail out of its teardown rather than deinit a window the newer
     /// transition owns.
     func testNewerTransitionSupersedesAnEarlierGeneration() async {
@@ -169,14 +169,14 @@ final class NookSurfaceConcurrencyTests: XCTestCase {
         await hideTask.value
         await expandTask.value
 
-        // The hide observed itself superseded after the yield — its teardown bails.
+        // The hide observed itself superseded after the yield - its teardown bails.
         XCTAssertEqual(hideStillCurrentAfterSupersede, false)
         // The expand is the most recent claim and owns the surface.
         XCTAssertEqual(expandGenerationIsCurrent, true)
     }
 
-    /// `supersedeInFlightTransition` — used by the synchronous window-swap paths
-    /// (`presentation.didSet`, screen-parameter observer) — invalidates any in-flight
+    /// `supersedeInFlightTransition` - used by the synchronous window-swap paths
+    /// (`presentation.didSet`, screen-parameter observer) - invalidates any in-flight
     /// generation so a mid-flight `_expand`/`_compact`/`_hide` bails when the window is
     /// rebuilt under it.
     func testWindowSwapSupersedesInFlightTransition() async {
@@ -194,7 +194,7 @@ final class NookSurfaceConcurrencyTests: XCTestCase {
         XCTAssertEqual(stillCurrentAfterSwap, false)
     }
 
-    /// An awaited `hide()` always resolves — it now routes through `runTransition` like
+    /// An awaited `hide()` always resolves - it now routes through `runTransition` like
     /// `expand`/`compact`, so the awaited task completes rather than wedging on a dropped
     /// continuation. With no window to tear down it is effectively a fast no-op.
     func testAwaitedHideOnHiddenNookResolves() async {
@@ -291,7 +291,7 @@ final class NookSurfaceConcurrencyTests: XCTestCase {
         XCTAssertFalse(nook.isLayoutGraceActive)
     }
 
-    /// Hover-exit auto-compact must not run while layout grace is active — the common
+    /// Hover-exit auto-compact must not run while layout grace is active - the common
     /// failure when expanded content shrinks under a stationary cursor.
     func testLayoutGraceSuppressesHoverExitCompact() async throws {
         guard let screen = NSScreen.main else {

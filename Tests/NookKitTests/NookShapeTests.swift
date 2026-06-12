@@ -19,7 +19,7 @@ final class NookShapeTests: XCTestCase {
     // MARK: - animatableData round-trip
 
     /// `animatableData` is the seam SwiftUI animates radii through. Getting and setting
-    /// it must round-trip both values without re-ordering — the chrome's compact-to-
+    /// it must round-trip both values without re-ordering - the chrome's compact-to-
     /// expanded radius spring depends on it.
     func testAnimatableDataRoundTrip() {
         var shape = NookShape(form: .floating, topCornerRadius: 8, bottomCornerRadius: 24)
@@ -38,7 +38,7 @@ final class NookShapeTests: XCTestCase {
     /// the clamp, a small compact pill (width < 2×topCornerRadius) draws a
     /// self-intersecting path that renders as a glitchy crescent.
     func testFloatingPathClampsRadiiOnSmallRects() {
-        // Top radius 40, bottom radius 40, but the rect is only 30×30 — both must clamp
+        // Top radius 40, bottom radius 40, but the rect is only 30×30 - both must clamp
         // to 15 (the half-min).
         let tiny = CGRect(x: 0, y: 0, width: 30, height: 30)
         let path = NookShape(form: .floating, topCornerRadius: 40, bottomCornerRadius: 40)
@@ -74,7 +74,7 @@ final class NookShapeTests: XCTestCase {
             .path(in: rect)
         let bounds = path.boundingRect
 
-        // The path's bounding box must equal the host rect — a missing corner curve
+        // The path's bounding box must equal the host rect - a missing corner curve
         // would produce a smaller box.
         XCTAssertEqual(bounds.minX, rect.minX, accuracy: 0.5)
         XCTAssertEqual(bounds.maxX, rect.maxX, accuracy: 0.5)
@@ -84,7 +84,7 @@ final class NookShapeTests: XCTestCase {
 
     // MARK: - Notch path
 
-    /// The notch path's bounding box is the host rect — the eared top edge curves
+    /// The notch path's bounding box is the host rect - the eared top edge curves
     /// inward, not outward.
     func testNotchPathBoundingBoxMatchesHostRect() {
         let rect = CGRect(x: 0, y: 0, width: 520, height: 220)

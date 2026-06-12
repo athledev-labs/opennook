@@ -55,7 +55,7 @@ final class ModuleHostTests: XCTestCase {
         XCTAssertEqual(host.attentionModuleIDs, ["B"])
     }
 
-    /// `requestAttention(for:)` is a no-op for the foreground module — it is already on
+    /// `requestAttention(for:)` is a no-op for the foreground module - it is already on
     /// screen so there is nothing to badge.
     func testRequestAttentionIsNoOpForForegroundModule() {
         let a = StubModule(id: "A")
@@ -80,7 +80,7 @@ final class ModuleHostTests: XCTestCase {
         XCTAssertTrue(host.attentionModuleIDs.isEmpty)
     }
 
-    /// Switching to a module clears its attention badge — the user has now seen it.
+    /// Switching to a module clears its attention badge - the user has now seen it.
     func testSwitchClearsTargetModuleAttention() {
         let a = StubModule(id: "A")
         let b = StubModule(id: "B")
@@ -94,7 +94,7 @@ final class ModuleHostTests: XCTestCase {
         XCTAssertFalse(host.attentionModuleIDs.contains("B"), "switching to B clears B's badge")
     }
 
-    /// `attentionModuleIDs` is `@Published` — observers see each update.
+    /// `attentionModuleIDs` is `@Published` - observers see each update.
     func testAttentionModuleIDsIsPublished() {
         let a = StubModule(id: "A")
         let b = StubModule(id: "B")

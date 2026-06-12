@@ -12,7 +12,7 @@ import XCTest
 @MainActor
 final class SurfaceArbiterTests: XCTestCase {
     /// Drives a `SurfaceArbiter` with fully controllable engagement, active module, and
-    /// surface state — no real window. `runSerial` runs operations inline.
+    /// surface state - no real window. `runSerial` runs operations inline.
     @MainActor
     private final class Harness {
         var engaged = false
@@ -129,7 +129,7 @@ final class SurfaceArbiterTests: XCTestCase {
         harness.arbiter.invalidateClaims(ownedBy: "A")
         let transitionsBeforeEnd = harness.transitions.count
 
-        // A stale `end` must not touch the surface — no restore, no transition.
+        // A stale `end` must not touch the surface - no restore, no transition.
         await harness.arbiter.end(token!)
         XCTAssertEqual(harness.transitions.count, transitionsBeforeEnd, "stale end is a no-op")
         XCTAssertEqual(harness.state, .expanded)
@@ -175,7 +175,7 @@ final class SurfaceArbiterTests: XCTestCase {
 
     // MARK: - Watchdog
 
-    /// The watchdog default is 30 s — a wall-clock safety net, not flow control.
+    /// The watchdog default is 30 s - a wall-clock safety net, not flow control.
     /// Pinned so a future "tune the default" change has to update this test and think
     /// about whether well-behaved presenters still clear it.
     func testDefaultMaxDurationIsThirtySeconds() {
@@ -238,7 +238,7 @@ final class SurfaceArbiterTests: XCTestCase {
         )
     }
 
-    /// Invalidating a module's claims cancels their watchdogs too — otherwise a
+    /// Invalidating a module's claims cancels their watchdogs too - otherwise a
     /// just-switched-away module's stuck watchdog would synthesize an `end` against
     /// a stale token (harmless) but still racing through `runSerial` for nothing.
     func testWatchdogCancelledOnInvalidate() async throws {
@@ -262,7 +262,7 @@ final class SurfaceArbiterTests: XCTestCase {
         )
     }
 
-    /// `maxDuration: nil` opts the claim out of the watchdog — for an intentional
+    /// `maxDuration: nil` opts the claim out of the watchdog - for an intentional
     /// long-running takeover the host has explicitly chosen.
     func testNilMaxDurationDisablesWatchdog() async throws {
         let harness = Harness()

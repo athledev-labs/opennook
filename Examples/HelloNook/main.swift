@@ -5,10 +5,10 @@
 // you may not use this file except in compliance with the License.
 // A copy is included at /LICENSE in the repository root.
 
-// HelloNook — the smallest possible OpenNook app.
+// HelloNook - the smallest possible OpenNook app.
 //
 // "Register a view, go": hand `NookApp.main` one SwiftUI view and you have a notch
-// app — top bar, Settings, hotkey, compact pill all come for free. Run with
+// app - top bar, Settings, hotkey, compact pill all come for free. Run with
 // `swift run HelloNook`, then press ⌥⌘; to expand.
 
 import NookApp

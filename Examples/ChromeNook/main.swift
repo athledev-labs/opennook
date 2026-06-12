@@ -5,7 +5,7 @@
 // you may not use this file except in compliance with the License.
 // A copy is included at /LICENSE in the repository root.
 
-// ChromeNook — a tour of OpenNook's deeper chrome-customization seams.
+// ChromeNook - a tour of OpenNook's deeper chrome-customization seams.
 //
 // Where ThemedNook covers a host theme + lifecycle hooks, this shows the rest of
 // the `NookConfiguration` surface, all additive and non-breaking:
@@ -60,7 +60,7 @@ struct ChromeHomeView: View {
     }
 }
 
-/// A top-bar trailing action — rendered left of the framework lock + gear. It reads the
+/// A top-bar trailing action - rendered left of the framework lock + gear. It reads the
 /// resolved theme and observes `AppState`, like the rest of the chrome.
 struct ChromeTrailingActions: View {
     @EnvironmentObject private var appState: AppState
@@ -84,7 +84,7 @@ var configuration = NookConfiguration()
 configuration.setHome { ChromeHomeView() }
 configuration.setTopBarTrailingItems { ChromeTrailingActions() }
 
-// Launch defaults — ship translucent chrome out of the box (seed-only: a user's
+// Launch defaults - ship translucent chrome out of the box (seed-only: a user's
 // Settings change still wins, and the seed is never persisted).
 configuration.preferenceDefaults = NookPreferenceDefaults(
     appearance: NookAppearancePreferences(
@@ -94,15 +94,15 @@ configuration.preferenceDefaults = NookPreferenceDefaults(
     )
 )
 
-// Chrome behavior — opt into hover side-effects (keep-visible + haptics).
+// Chrome behavior - opt into hover side-effects (keep-visible + haptics).
 configuration.chromeBehavior = NookChromeBehavior(hoverBehavior: .all)
 
-// Labels / metrics / motion — localize a string, widen the breadcrumb, snappier swap.
+// Labels / metrics / motion - localize a string, widen the breadcrumb, snappier swap.
 configuration.labels.settingsBreadcrumb = "Preferences"
 configuration.metrics.breadcrumbMaxWidth = 160
 configuration.motion.viewModeChange = .snappy
 
-// Identity — name, tagline, and a custom brand mark replacing the OpenNook glyph.
+// Identity - name, tagline, and a custom brand mark replacing the OpenNook glyph.
 configuration.branding = NookHostBranding(
     hostName: "ChromeNook",
     hostTagline: "A tour of OpenNook's chrome-customization seams.",

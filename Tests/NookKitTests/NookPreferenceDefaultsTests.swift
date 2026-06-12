@@ -60,7 +60,7 @@ final class NookPreferenceDefaultsTests: XCTestCase {
     }
 
     /// The default bag reproduces the framework exactly, and both configuration structs
-    /// default to it — so an unconfigured host behaves as before.
+    /// default to it - so an unconfigured host behaves as before.
     func testDefaultsReproduceFramework() {
         XCTAssertEqual(NookPreferenceDefaults.default, NookPreferenceDefaults())
         XCTAssertEqual(NookPreferenceDefaults.default.appearance, .default)
@@ -100,7 +100,7 @@ final class NookPreferenceDefaultsTests: XCTestCase {
         XCTAssertNotEqual(appState.appearancePreferences, customDefaults.appearance)
     }
 
-    /// Seeding must not write the host defaults to `UserDefaults` — otherwise a later
+    /// Seeding must not write the host defaults to `UserDefaults` - otherwise a later
     /// build couldn't revise them for users who never touched Settings.
     func testSeedIsNotPersisted() {
         _ = AppState(preferenceDefaults: customDefaults)
@@ -113,8 +113,8 @@ final class NookPreferenceDefaultsTests: XCTestCase {
         }
     }
 
-    /// The seeded appearance reaches the surface on the first backdrop sync — the path
-    /// the chrome's first paint uses — so a host's launch presentation is honored before
+    /// The seeded appearance reaches the surface on the first backdrop sync - the path
+    /// the chrome's first paint uses - so a host's launch presentation is honored before
     /// any user interaction.
     func testSeededPresentationReachesSurface() {
         let seeded = AppState(

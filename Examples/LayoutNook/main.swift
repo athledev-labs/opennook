@@ -5,11 +5,11 @@
 // you may not use this file except in compliance with the License.
 // A copy is included at /LICENSE in the repository root.
 
-// LayoutNook — recommended expanded-width and content-inset patterns for host apps.
+// LayoutNook - recommended expanded-width and content-inset patterns for host apps.
 //
 // Where ChromeNook tours chrome-customization seams and ThemedNook shows palette +
 // lifecycle hooks, this example focuses on how the expanded panel's width and insets
-// compose — and how a home view should read `\.nookContentInsets` instead of adding
+// compose - and how a home view should read `\.nookContentInsets` instead of adding
 // its own horizontal padding.
 //
 // Run with `swift run LayoutNook`, then press ⌥⌘; to expand.
@@ -20,7 +20,7 @@ import NookApp
 import SwiftUI
 
 /// Recommended home layout: edge-aligned content and a full-width bottom command row
-/// both read `\.nookContentInsets` — no extra `.padding(.horizontal, …)` on the root.
+/// both read `\.nookContentInsets` - no extra `.padding(.horizontal, ...)` on the root.
 struct LayoutHomeView: View {
     @Environment(\.nookContentInsets) private var contentInsets
     @Environment(\.nookResolvedTheme) private var theme
@@ -85,7 +85,7 @@ configuration.setHome { LayoutHomeView() }
 // this only fixes the inner content column so home and Settings don't resize each other.
 configuration.expandedWidth = 600
 
-// Trim the chrome's bottom safe-area strip (default 8 → 2) so centered rows sit closer
+// Trim the chrome's bottom safe-area strip (default 8 -> 2) so centered rows sit closer
 // to the rounded bottom. Edge-aligned rows still clear the curve via `nookContentInsets`.
 configuration.style = NookStyle(
     topCornerRadius: 19,
@@ -94,7 +94,7 @@ configuration.style = NookStyle(
 )
 
 // `metrics.edgePadding` (default 8) is already applied by `NookExpandedView`. Do not
-// mirror it with `.padding(.horizontal, 12)` on the home root — that stacks insets and
+// mirror it with `.padding(.horizontal, 12)` on the home root - that stacks insets and
 // leaves dead space beside answer text and bottom command rows.
 
 NookApp.main(configuration)

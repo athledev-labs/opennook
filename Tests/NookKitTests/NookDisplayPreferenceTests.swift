@@ -35,14 +35,14 @@ final class NookDisplayPreferenceTests: XCTestCase {
     }
 
     /// An unrecognized `mode` (e.g. JSON from a newer build) must degrade to the default
-    /// rather than throw — a decode failure would wipe the user's other saved settings.
+    /// rather than throw - a decode failure would wipe the user's other saved settings.
     func testUnknownModeDecodesToDefault() throws {
         let data = Data(#"{"mode":"someFutureMode"}"#.utf8)
         let decoded = try JSONDecoder().decode(NookDisplayPreference.self, from: data)
         XCTAssertEqual(decoded, .default)
     }
 
-    /// A `.specific` record with no UUID is incoherent — it can't name a display — so it
+    /// A `.specific` record with no UUID is incoherent - it can't name a display - so it
     /// degrades to the default instead of resolving to an empty-string UUID.
     func testSpecificWithoutUUIDDecodesToDefault() throws {
         let data = Data(#"{"mode":"specific"}"#.utf8)
@@ -71,7 +71,7 @@ final class NookDisplayPreferenceTests: XCTestCase {
     /// requested UUID is not in the connected set (i.e. the user picked an external
     /// display and it has since been unplugged), the resolver must return the
     /// built-in panel if present, otherwise the main screen, otherwise the first
-    /// attached — in that order, NOT an arbitrary screen.
+    /// attached - in that order, NOT an arbitrary screen.
     func testSpecificUnpluggedResolvesViaBuiltInThenMainThenFirst() throws {
         guard !NSScreen.screens.isEmpty else {
             throw XCTSkip("No display attached in this environment.")

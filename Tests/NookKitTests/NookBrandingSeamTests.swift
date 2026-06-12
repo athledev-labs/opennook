@@ -9,7 +9,7 @@ import SwiftUI
 import XCTest
 @testable import NookKit
 
-/// Seam D — unified identity: single-module branding, the brand-mark override, and the
+/// Seam D - unified identity: single-module branding, the brand-mark override, and the
 /// menu-bar disable flag. Defaults reproduce today's chrome.
 @MainActor
 final class NookBrandingSeamTests: XCTestCase {
@@ -34,7 +34,7 @@ final class NookBrandingSeamTests: XCTestCase {
         XCTAssertFalse(moduleHost.showsMenuBarExtra)
     }
 
-    /// The menu-bar flag threads host → registry → ModuleHost.
+    /// The menu-bar flag threads host -> registry -> ModuleHost.
     func testMenuBarFlagThreadsFromHost() {
         var host = NookHostConfiguration()
         host.showsMenuBarExtra = false
@@ -45,7 +45,7 @@ final class NookBrandingSeamTests: XCTestCase {
         XCTAssertFalse(moduleHost.showsMenuBarExtra)
     }
 
-    /// Branding equality ignores the mark closure — two brandings are equal when their
+    /// Branding equality ignores the mark closure - two brandings are equal when their
     /// strings match, so existing `== .default` checks keep working with a mark set.
     func testBrandingEqualityIgnoresMark() {
         let plain = NookHostBranding(hostName: "X")

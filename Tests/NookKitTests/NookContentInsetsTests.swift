@@ -16,7 +16,7 @@ import XCTest
 /// chrome's own pre-padding stops clearing a curve.
 final class NookContentInsetsTests: XCTestCase {
 
-    // Matches `NookView`'s expanded-content safe-area strip — the historical
+    // Matches `NookView`'s expanded-content safe-area strip - the historical
     // fixed geometry (`NookStyle.standardExpandedContentInsets`): 0 top, 8 elsewhere.
     private let chromeSafeAreaInsets = NookStyle.standardExpandedContentInsets
 
@@ -34,7 +34,7 @@ final class NookContentInsetsTests: XCTestCase {
 
     /// Guards the wiring default, not just the derivation math: `NookStyle.standard`
     /// (and any `NookStyle` built without overriding `expandedContentInsets`) must
-    /// carry the historical strip — 0 on top, 8 on the other three edges. A future
+    /// carry the historical strip - 0 on top, 8 on the other three edges. A future
     /// edit to the default would silently reshape the shipped geometry without this.
     func testStandardStyleCarriesLegacyExpandedInsets() {
         let expected = NookEdgeInsets(top: 0, bottom: 8, leading: 8, trailing: 8)
@@ -91,7 +91,7 @@ final class NookContentInsetsTests: XCTestCase {
         XCTAssertEqual(perEdge.trailing, 12)
     }
 
-    /// Tightening only the bottom inset (8 → 2) leaves top/leading/trailing untouched
+    /// Tightening only the bottom inset (8 -> 2) leaves top/leading/trailing untouched
     /// and *raises* the bottom residual: with 6 pt less chrome pre-padding, content
     /// pinned into a bottom corner must inset 6 pt more to clear the same curve. The
     /// chrome's own bottom safe-area strip shrinks by 6 pt, so centered content sits
@@ -115,7 +115,7 @@ final class NookContentInsetsTests: XCTestCase {
 
     /// The chrome's horizontal pre-pad is `topCornerRadius + chromeSafeAreaInset`.
     /// A `bottomCornerRadius` equal to that threshold has zero horizontal
-    /// residual — the chrome already insets exactly enough horizontally to
+    /// residual - the chrome already insets exactly enough horizontally to
     /// clear the bottom-corner flare.
     func testNotchExpandedHorizontalResidualClampsAtZero() {
         let insets = NookContentInsets.expanded(

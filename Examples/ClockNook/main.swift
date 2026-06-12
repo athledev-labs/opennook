@@ -5,7 +5,7 @@
 // you may not use this file except in compliance with the License.
 // A copy is included at /LICENSE in the repository root.
 
-// ClockNook — a home surface plus a custom compact slot.
+// ClockNook - a home surface plus a custom compact slot.
 //
 // Shows two registration knobs: `setHome` for the expanded surface and
 // `setCompactTrailing` for the glyph flanking the notch when collapsed.

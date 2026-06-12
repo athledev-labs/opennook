@@ -20,7 +20,7 @@ final class NookConfigurationTests: XCTestCase {
     func testDefaultConfigurationIsComplete() {
         let configuration = NookConfiguration()
 
-        // Content closures are non-optional — invoking them must not trap.
+        // Content closures are non-optional - invoking them must not trap.
         _ = configuration.home()
         _ = configuration.compactLeading()
         _ = configuration.compactTrailing()
@@ -50,7 +50,7 @@ final class NookConfigurationTests: XCTestCase {
     }
 
     /// The coordinator projects the configuration's lifecycle hooks onto the surface
-    /// so transitions from any source — host, hover, drag — reach the host.
+    /// so transitions from any source - host, hover, drag - reach the host.
     @MainActor
     func testCoordinatorProjectsLifecycleHooksOntoTheSurface() {
         var configuration = NookConfiguration()
@@ -94,7 +94,7 @@ final class NookConfigurationTests: XCTestCase {
     }
 
     /// By default the trailing cluster carries no host items, so the top bar renders
-    /// exactly the framework chrome (just the keep-open lock and gear) — unchanged.
+    /// exactly the framework chrome (just the keep-open lock and gear) - unchanged.
     func testTopBarTrailingItemsDefaultsToNil() {
         let configuration = NookConfiguration()
 
@@ -123,7 +123,7 @@ final class NookConfigurationTests: XCTestCase {
         XCTAssertTrue(flag.didBuild)
     }
 
-    /// The default configuration ships the full framework chrome — top bar and Settings.
+    /// The default configuration ships the full framework chrome - top bar and Settings.
     func testDefaultConfigurationEnablesChrome() {
         let configuration = NookConfiguration()
 
@@ -142,7 +142,7 @@ final class NookConfigurationTests: XCTestCase {
     }
 
     /// With Settings disabled, `showSettings()` must not move the surface off the home
-    /// view — there is no Settings UI to show.
+    /// view - there is no Settings UI to show.
     @MainActor
     func testShowSettingsKeepsHomeWhenSettingsDisabled() {
         var configuration = NookConfiguration()

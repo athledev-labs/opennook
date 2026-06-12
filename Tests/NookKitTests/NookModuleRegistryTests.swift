@@ -8,7 +8,7 @@
 import XCTest
 @testable import NookKit
 
-/// Direct coverage for ``NookModuleRegistry`` — lazy construction, instance caching,
+/// Direct coverage for ``NookModuleRegistry`` - lazy construction, instance caching,
 /// `isLoaded` / `unload` lifecycle, descriptor lookup. The registry is the only piece
 /// that *retains* live module instances; getting this wrong leaks state across
 /// switches.
@@ -56,7 +56,7 @@ final class NookModuleRegistryTests: XCTestCase {
         XCTAssertFalse(registry.isLoaded("B"))
     }
 
-    /// A first `module(for:)` constructs and caches the module — `isLoaded` flips
+    /// A first `module(for:)` constructs and caches the module - `isLoaded` flips
     /// `true`, the factory ran exactly once.
     func testModuleForBuildsAndCachesOnFirstAccess() {
         let (registry, probe) = makeRegistry(ids: ["A"])
@@ -66,7 +66,7 @@ final class NookModuleRegistryTests: XCTestCase {
         XCTAssertEqual(probe.counts["A"], 1)
     }
 
-    /// A second `module(for:)` returns the same cached instance — the factory does
+    /// A second `module(for:)` returns the same cached instance - the factory does
     /// not re-run.
     func testModuleForReturnsSameInstanceOnSubsequentCalls() {
         let (registry, probe) = makeRegistry(ids: ["A"])
@@ -85,7 +85,7 @@ final class NookModuleRegistryTests: XCTestCase {
 
     // MARK: - Unload lifecycle
 
-    /// `unload(_:)` drops the cached instance — the next `module(for:)` rebuilds it.
+    /// `unload(_:)` drops the cached instance - the next `module(for:)` rebuilds it.
     func testUnloadDropsCachedInstanceAndForcesRebuild() {
         let (registry, probe) = makeRegistry(ids: ["A"])
         _ = registry.module(for: "A")

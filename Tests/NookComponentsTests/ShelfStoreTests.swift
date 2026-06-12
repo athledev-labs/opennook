@@ -93,7 +93,7 @@ final class ShelfStoreTests: XCTestCase {
         store.accept([kept, deleted])
         XCTAssertEqual(store.items.count, 2)
 
-        // With a surviving sibling, access is clearly working — so the one genuinely
+        // With a surviving sibling, access is clearly working - so the one genuinely
         // missing file should be purged.
         try FileManager.default.removeItem(at: deleted)
         store.purgeMissing()
@@ -101,8 +101,8 @@ final class ShelfStoreTests: XCTestCase {
         XCTAssertEqual(store.items.first?.resolveURL()?.standardizedFileURL, kept.standardizedFileURL)
     }
 
-    /// Regression: when *every* item fails to resolve — indistinguishable from a
-    /// sandboxed host that lost its file-access grant — the shelf must be preserved,
+    /// Regression: when *every* item fails to resolve - indistinguishable from a
+    /// sandboxed host that lost its file-access grant - the shelf must be preserved,
     /// not silently wiped.
     func testPurgeMissingPreservesShelfOnSystemicFailure() throws {
         let (store, _, _) = freshStore()
@@ -119,7 +119,7 @@ final class ShelfStoreTests: XCTestCase {
     }
 
     /// The consolidated `init` reconcile (load + heal + purge in one pass) must purge an
-    /// individually-deleted file on launch, exactly as `purgeMissing()` does — proving
+    /// individually-deleted file on launch, exactly as `purgeMissing()` does - proving
     /// the single-pass consolidation preserves the per-item purge behaviour.
     func testInitReconcilePurgesIndividualDeletedFile() throws {
         let defaults = UserDefaults(suiteName: "nook.test.\(UUID().uuidString)")!
@@ -188,7 +188,7 @@ final class ShelfStoreTests: XCTestCase {
             displayName: "ghost",
             fileExtension: "txt",
             addedAt: Date(),
-            bookmark: Data(repeating: 0xff, count: 32),  // garbage — will not resolve
+            bookmark: Data(repeating: 0xff, count: 32),  // garbage - will not resolve
             typeIdentifier: "public.plain-text",
             bookmarkKind: .nonScoped
         )
@@ -230,14 +230,14 @@ final class ShelfStoreTests: XCTestCase {
     }
 
     /// Items persisted before the `bookmarkKind` field existed decode as `.unknown`
-    /// and are treated exactly like `.nonScoped` for purge — preserved on failure.
+    /// and are treated exactly like `.nonScoped` for purge - preserved on failure.
     func testUnknownKindTreatedAsNonScopedForPurge() throws {
         let defaults = UserDefaults(suiteName: "nook.test.\(UUID().uuidString)")!
         let key = "items"
         let alive = try makeTempFile()
         defer { try? FileManager.default.removeItem(at: alive) }
 
-        // Emit JSON missing the `bookmarkKind` key — the shape an older build wrote.
+        // Emit JSON missing the `bookmarkKind` key - the shape an older build wrote.
         let aliveItem = ShelfItem.make(from: alive)!
         let aliveDict: [String: Any] = [
             "id": aliveItem.id.uuidString,
@@ -256,7 +256,7 @@ final class ShelfStoreTests: XCTestCase {
             "typeIdentifier": "public.plain-text"
         ]
         // We avoid JSONSerialization here because JSONEncoder writes Dates and Data
-        // with specific encodings — emit those by hand to match its defaults exactly.
+        // with specific encodings - emit those by hand to match its defaults exactly.
         let json = """
         [
           {"id":"\(aliveItem.id.uuidString)",

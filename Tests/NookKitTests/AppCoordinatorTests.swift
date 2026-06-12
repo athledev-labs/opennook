@@ -18,7 +18,7 @@ final class AppCoordinatorTests: XCTestCase {
         private(set) var switchAwayCount = 0
         private(set) var quiesceWork: (@MainActor () async -> Void)?
 
-        /// Where this module records its own `onExpand` firings — shared with the test.
+        /// Where this module records its own `onExpand` firings - shared with the test.
         let expandLog: ExpandLog
 
         init(id: String, expandLog: ExpandLog, quiesceWork: (@MainActor () async -> Void)? = nil) {
@@ -102,7 +102,7 @@ final class AppCoordinatorTests: XCTestCase {
     }
 
     /// A switch quiesces the outgoing module. With the reordered switch, the quiesce
-    /// runs off the lifecycle chain — `drainSwitchTailsForTesting()` joins it.
+    /// runs off the lifecycle chain - `drainSwitchTailsForTesting()` joins it.
     func testSwitchQuiescesOutgoingModule() async {
         let log = ExpandLog()
         let a = SpyModule(id: "A", expandLog: log)
@@ -171,7 +171,7 @@ final class AppCoordinatorTests: XCTestCase {
     /// surface transition behind it.
     func testSwitchDoesNotWedgeOnHangingPrepareForSwitchAway() async {
         let log = ExpandLog()
-        // A's quiesce parks forever — simulating a misbehaving module.
+        // A's quiesce parks forever - simulating a misbehaving module.
         let a = SpyModule(id: "A", expandLog: log, quiesceWork: {
             try? await Task.sleep(for: .seconds(60))
         })
@@ -193,7 +193,7 @@ final class AppCoordinatorTests: XCTestCase {
     }
 
     /// `registerGlobalHotkey` records its outcome on the durable failure channel.
-    /// A successful registration leaves no `"toggle"` failure entry, and — critically —
+    /// A successful registration leaves no `"toggle"` failure entry, and - critically - 
     /// a pre-existing failure entry is cleared once a registration succeeds.
     func testRegisterGlobalHotkeyClearsFailureOnSuccess() {
         let log = ExpandLog()
@@ -243,12 +243,12 @@ final class AppCoordinatorTests: XCTestCase {
     /// the runloop the way these sinks are scheduled on.
     private func drainAndPump(_ coordinator: AppCoordinator) async {
         await coordinator.drainLifecycleForTesting()
-        try? await Task.sleep(nanoseconds: 30_000_000)  // 30 ms — generous on CI
+        try? await Task.sleep(nanoseconds: 30_000_000)  // 30 ms - generous on CI
     }
 
     /// REGRESSION: the arbiter's own `expand()` must NOT trip `isUserEngaged`. Before
     /// the fix, `isUserEngaged` read `appState.isNookVisible`, which mirrored the
-    /// surface and flipped `true` as soon as the arbiter expanded — silently disabling
+    /// surface and flipped `true` as soon as the arbiter expanded - silently disabling
     /// all subsequent preemption. After the fix, engagement reads from explicit user
     /// intent, so the arbiter's expand leaves it `false`.
     func testArbiterExpandDoesNotMarkUserEngaged() async {
@@ -283,7 +283,7 @@ final class AppCoordinatorTests: XCTestCase {
             NookSurfaceClaim(moduleID: "A", priority: .normal)
         )
         XCTAssertNotNil(normal)
-        await drainAndPump(coordinator)  // let the mirror flip — this is what hid the bug
+        await drainAndPump(coordinator)  // let the mirror flip - this is what hid the bug
 
         let urgent = await coordinator.beginTransientPresentation(
             NookSurfaceClaim(moduleID: "A", priority: .urgent)
@@ -332,7 +332,7 @@ final class AppCoordinatorTests: XCTestCase {
 
     /// If the surface collapses independently (hover-exit auto-compact, simulated here
     /// by a direct `compact(on:)`), the `bindSurfaceVisibility` sink clears the user-
-    /// open intent — so the arbiter is willing to grant the next claim.
+    /// open intent - so the arbiter is willing to grant the next claim.
     func testHoverExitAutoCompactClearsUserOpenIntent() async {
         let log = ExpandLog()
         let a = SpyModule(id: "A", expandLog: log)
@@ -357,7 +357,7 @@ final class AppCoordinatorTests: XCTestCase {
         XCTAssertNotNil(token, "a transient claim is grantable after the user's nook collapsed")
     }
 
-    /// Hover engagement counts even when the user did not open the surface — i.e.,
+    /// Hover engagement counts even when the user did not open the surface - i.e.,
     /// `userInitiatedOpen` is unset but `isHovering` is true.
     func testHoveringBlocksTransientEvenWithoutUserOpen() async {
         let log = ExpandLog()
@@ -416,13 +416,13 @@ final class AppCoordinatorTests: XCTestCase {
         surface.isHovering = true
         XCTAssertTrue(coordinator.isUserEngaged)
 
-        // The surface is still expanded — the arbiter does not force-end mid-claim.
+        // The surface is still expanded - the arbiter does not force-end mid-claim.
         XCTAssertEqual(
             surface.state, .expanded,
             "mid-claim engagement does NOT preempt — the presenter must yield itself"
         )
 
-        // A NEW claim, however, is denied — engagement gates `begin`.
+        // A NEW claim, however, is denied - engagement gates `begin`.
         let denied = await coordinator.beginTransientPresentation(NookSurfaceClaim(moduleID: "A"))
         XCTAssertNil(denied, "a new claim is denied while the user is now engaged")
 
@@ -441,7 +441,7 @@ final class AppCoordinatorTests: XCTestCase {
     /// Regression: switching to a module whose `topBar.showsSettings == false` must drop
     /// any stranded `viewMode == .settings`. Without this, the chrome's top bar reads a
     /// settings-mode viewMode and renders a back-chevron at a Settings screen that
-    /// `NookExpandedView` correctly refuses to mount — the user sees a phantom nav target.
+    /// `NookExpandedView` correctly refuses to mount - the user sees a phantom nav target.
     func testSwitchToModuleWithSettingsDisabledClearsStrandedSettingsViewMode() async {
         final class SettingsHidingModule: NookModule {
             let descriptor: NookModuleDescriptor
@@ -472,7 +472,7 @@ final class AppCoordinatorTests: XCTestCase {
             surface: surface
         )
 
-        // User opens Settings while on A — viewMode strands to .settings.
+        // User opens Settings while on A - viewMode strands to .settings.
         coordinator.appState.showSettings()
         XCTAssertEqual(coordinator.appState.viewMode, .settings)
 
@@ -487,7 +487,7 @@ final class AppCoordinatorTests: XCTestCase {
     }
 
     /// Counter: switching to a module that *also* allows Settings must NOT touch a
-    /// `.settings` viewMode. The fix is narrow — only clear when the incoming module
+    /// `.settings` viewMode. The fix is narrow - only clear when the incoming module
     /// disables the Settings screen.
     func testSwitchPreservesSettingsViewModeWhenIncomingModuleAllowsIt() async {
         let log = ExpandLog()
@@ -515,7 +515,7 @@ final class AppCoordinatorTests: XCTestCase {
     /// upstream emission separately, recording the registration outcome twice on the
     /// durable failure channel and minting two fresh Carbon ids per rebind. Mapping the
     /// combineLatest pair onto a `HotkeyRegistrationIntent` collapses the two emissions
-    /// onto one *intent change* (suspended → bound), and `removeDuplicates` then dedups
+    /// onto one *intent change* (suspended -> bound), and `removeDuplicates` then dedups
     /// transitional duplicates.
     func testHotkeyRebindFiresExactlyOneRegisterPerUserAction() async throws {
         let log = ExpandLog()
@@ -526,7 +526,7 @@ final class AppCoordinatorTests: XCTestCase {
         coordinator.bindHotkeyRegistration()  // install the sink
         let mintedAfterStart = coordinator.hotkeyController.carbonIDsMintedForTesting
 
-        // Open the recorder — intent maps to `.suspended`; sink unregisters (no mint).
+        // Open the recorder - intent maps to `.suspended`; sink unregisters (no mint).
         coordinator.appState.isRecordingHotkey = true
         try await Task.sleep(nanoseconds: 30_000_000)
         XCTAssertEqual(
@@ -535,7 +535,7 @@ final class AppCoordinatorTests: XCTestCase {
         )
 
         // User picks a new hotkey, then closes the recorder. Both publishes happen on
-        // the same runloop turn — the sink must fire exactly ONE register for the new
+        // the same runloop turn - the sink must fire exactly ONE register for the new
         // hotkey, not one per upstream @Published change.
         let newHotkey = NookHotkey(keyCode: 51, carbonModifiers: 4096 | 2048, keySymbol: "⌫")
         coordinator.appState.replaceHotkey(newHotkey)
@@ -551,7 +551,7 @@ final class AppCoordinatorTests: XCTestCase {
     }
 
     /// Recorder opened and then cancelled without changing the key collapses through
-    /// `.suspended` → `.bound(unchanged)` — exactly one restore registration after the
+    /// `.suspended` -> `.bound(unchanged)` - exactly one restore registration after the
     /// unregister.
     // MARK: - Cold-launch onCompact suppression
 
@@ -595,7 +595,7 @@ final class AppCoordinatorTests: XCTestCase {
         XCTAssertEqual(counter.value, 0, "cold-launch compact did not fire host onCompact")
         XCTAssertEqual(surface.state, .compact, "but the surface IS compact")
 
-        // A subsequent user-driven compact fires it normally — the suppression is
+        // A subsequent user-driven compact fires it normally - the suppression is
         // strictly for the boot transition.
         await surface.expand(on: nil)
         await surface.compact(on: nil)
@@ -680,7 +680,7 @@ final class AppCoordinatorTests: XCTestCase {
     // MARK: - Presentation pinning
 
     /// A pin acquired through the host-wide ``NookPresentationPinning`` broker projects
-    /// onto `surface.staysExpandedOnHoverExit` — so a popover that moves the pointer out
+    /// onto `surface.staysExpandedOnHoverExit` - so a popover that moves the pointer out
     /// of the notch window no longer triggers the hover-exit auto-compact.
     func testPresentationPinFlipsStaysExpandedOnHoverExit() async {
         let log = ExpandLog()
@@ -717,7 +717,7 @@ final class AppCoordinatorTests: XCTestCase {
         let surface = FakeNookSurface()
         let coordinator = makeCoordinator(modules: [a], surface: surface)
 
-        // Neither hover nor user-open intent is set — but pinning *is* engagement.
+        // Neither hover nor user-open intent is set - but pinning *is* engagement.
         XCTAssertFalse(coordinator.isUserEngaged, "baseline: nothing engaging the surface")
 
         let handle = coordinator.presentationPinning.pin()
@@ -803,7 +803,7 @@ final class AppCoordinatorTests: XCTestCase {
     }
 
     /// When the user has `keepNookOpen` set, releasing the last pin must restore that
-    /// preference — not silently turn it off. The pin overrides the user preference
+    /// preference - not silently turn it off. The pin overrides the user preference
     /// upward (always pinned while presenting); release must return control to it.
     func testPinReleaseRestoresKeepNookOpenPreference() async {
         let log = ExpandLog()
