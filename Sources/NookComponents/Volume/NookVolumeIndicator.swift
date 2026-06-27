@@ -23,6 +23,8 @@ import SwiftUI
 public struct NookVolumeIndicator: View {
     @ObservedObject private var observer: SystemVolumeObserver
     @Environment(\.nookResolvedTheme) private var theme
+    @Environment(\.nookChromeTypography) private var typography
+    @Environment(\.nookChromeMetrics) private var metrics
 
     public init(observer: SystemVolumeObserver) {
         self.observer = observer
@@ -30,9 +32,9 @@ public struct NookVolumeIndicator: View {
 
     public var body: some View {
         Image(systemName: Self.symbolName(volume: observer.volume, isMuted: observer.isMuted))
-            .font(.system(size: 11, weight: .semibold))
-            .foregroundStyle(theme.primaryLabel.opacity(0.85))
-            .frame(width: 24, height: 24)
+            .font(typography.volumeGlyph)
+            .foregroundStyle(theme.primaryLabel.opacity(metrics.volumeGlyphOpacity))
+            .frame(width: metrics.compactSlotSize, height: metrics.compactSlotSize)
             .accessibilityLabel(
                 observer.isMuted
                     ? "Volume muted"

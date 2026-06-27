@@ -21,6 +21,8 @@ import SwiftUI
 public struct NookShelfView: View {
     @ObservedObject private var store: ShelfStore
     @Environment(\.nookResolvedTheme) private var theme
+    @Environment(\.nookChromeTypography) private var typography
+    @Environment(\.nookChromeMetrics) private var metrics
 
     /// Optional "add files" action. When provided, the empty drop zone becomes
     /// click-to-import and a `+` button appears in the populated header, so picking
@@ -35,7 +37,7 @@ public struct NookShelfView: View {
     }
 
     public var body: some View {
-        VStack(spacing: 8) {
+        VStack(spacing: metrics.shelfContentSpacing) {
             if store.items.isEmpty {
                 emptyState
             } else {
@@ -44,7 +46,7 @@ public struct NookShelfView: View {
             }
         }
         .frame(maxWidth: .infinity)
-        .padding(.vertical, 6)
+        .padding(.vertical, metrics.shelfRootVerticalPadding)
     }
 
     @ViewBuilder
@@ -61,27 +63,30 @@ public struct NookShelfView: View {
     }
 
     private var dropZone: some View {
-        VStack(spacing: 8) {
+        VStack(spacing: metrics.shelfContentSpacing) {
             Image(systemName: "tray.and.arrow.down")
-                .font(.system(size: 24, weight: .light))
+                .font(typography.shelfDropZoneIcon)
                 .foregroundStyle(theme.tertiaryLabel)
             Text(onImport == nil ? "Drop files onto the notch to shelve them" : "Drop files here, or click to import")
-                .font(.system(size: 11))
+                .font(typography.shelfCaption)
                 .foregroundStyle(theme.tertiaryLabel)
         }
         .frame(maxWidth: .infinity)
-        .padding(.vertical, 28)
+        .padding(.vertical, metrics.shelfDropZoneVerticalPadding)
         .contentShape(Rectangle())
         .background(
-            RoundedRectangle(cornerRadius: 12, style: .continuous)
-                .strokeBorder(theme.subtleStroke, style: StrokeStyle(lineWidth: 1, dash: [4, 3]))
+            RoundedRectangle(cornerRadius: metrics.shelfDropZoneCornerRadius, style: .continuous)
+                .strokeBorder(
+                    theme.subtleStroke,
+                    style: StrokeStyle(lineWidth: metrics.shelfDropZoneStrokeWidth, dash: [4, 3])
+                )
         )
     }
 
     private var header: some View {
-        HStack(spacing: 10) {
+        HStack(spacing: metrics.shelfHeaderSpacing) {
             Text("^[\(store.items.count) file](inflect: true)")
-                .font(.system(size: 11, weight: .medium))
+                .font(typography.shelfHeaderLabel)
                 .foregroundStyle(theme.secondaryLabel)
             Spacer(minLength: 0)
             if let onImport {
@@ -89,27 +94,27 @@ public struct NookShelfView: View {
                     Image(systemName: "plus")
                 }
                 .buttonStyle(.plain)
-                .font(.system(size: 11, weight: .medium))
+                .font(typography.shelfHeaderLabel)
                 .foregroundStyle(theme.tertiaryLabel)
                 .help("Import files")
             }
             Button("Clear") { store.clear() }
                 .buttonStyle(.plain)
-                .font(.system(size: 11))
+                .font(typography.shelfCaption)
                 .foregroundStyle(theme.tertiaryLabel)
         }
     }
 
     private var shelfRow: some View {
         ScrollView(.horizontal, showsIndicators: false) {
-            HStack(spacing: 8) {
+            HStack(spacing: metrics.shelfContentSpacing) {
                 ForEach(store.items) { item in
                     ShelfItemChip(item: item, theme: theme) {
                         store.remove(item)
                     }
                 }
             }
-            .padding(.vertical, 2)
+            .padding(.vertical, metrics.shelfRowVerticalPadding)
         }
     }
 }
@@ -120,21 +125,23 @@ private struct ShelfItemChip: View {
     let theme: NookResolvedTheme
     let onRemove: () -> Void
 
+    @Environment(\.nookChromeTypography) private var typography
+    @Environment(\.nookChromeMetrics) private var metrics
     @State private var isHovered = false
 
     var body: some View {
-        VStack(spacing: 4) {
+        VStack(spacing: metrics.shelfChipSpacing) {
             icon
             Text(item.displayName)
-                .font(.system(size: 10, weight: .medium))
+                .font(typography.shelfChipLabel)
                 .lineLimit(1)
                 .truncationMode(.middle)
                 .foregroundStyle(theme.secondaryLabel)
         }
-        .frame(width: 72)
-        .padding(8)
+        .frame(width: metrics.shelfChipWidth)
+        .padding(metrics.shelfChipPadding)
         .background(
-            RoundedRectangle(cornerRadius: 10, style: .continuous)
+            RoundedRectangle(cornerRadius: metrics.shelfChipCornerRadius, style: .continuous)
                 .fill(theme.subtleFill)
         )
         .overlay(alignment: .topTrailing) {
@@ -159,19 +166,19 @@ private struct ShelfItemChip: View {
         if let fileIcon = item.withResolvedURL({ NSWorkspace.shared.icon(forFile: $0.path) }) {
             Image(nsImage: fileIcon)
                 .resizable()
-                .frame(width: 34, height: 34)
+                .frame(width: metrics.shelfIconSize, height: metrics.shelfIconSize)
         } else {
             Image(systemName: "questionmark.square.dashed")
-                .font(.system(size: 30, weight: .light))
+                .font(typography.shelfFallbackGlyph)
                 .foregroundStyle(theme.tertiaryLabel)
-                .frame(width: 34, height: 34)
+                .frame(width: metrics.shelfIconSize, height: metrics.shelfIconSize)
         }
     }
 
     private var removeButton: some View {
         Button(action: onRemove) {
             Image(systemName: "xmark.circle.fill")
-                .font(.system(size: 13))
+                .font(typography.shelfRemoveGlyph)
                 .foregroundStyle(theme.secondaryLabel)
                 .background(Circle().fill(theme.subtleFill))
         }
