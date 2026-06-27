@@ -143,6 +143,188 @@ public struct NookChromeMetrics: Sendable, Equatable {
     /// Line width of the banner outline. Default `0.5`.
     public var bannerStrokeWidth: CGFloat
 
+    // MARK: - Components (opt-in NookComponents add-ons)
+
+    /// Spacing inside the file shelf's stacks (root column, drop zone, item row). Default `8`.
+    public var shelfContentSpacing: CGFloat
+
+    /// Outer vertical padding of the file shelf surface. Default `6`.
+    public var shelfRootVerticalPadding: CGFloat
+
+    /// Vertical padding that gives the empty drop zone its height. Default `28`.
+    public var shelfDropZoneVerticalPadding: CGFloat
+
+    /// Corner radius of the empty drop zone's dashed well. Default `12`.
+    public var shelfDropZoneCornerRadius: CGFloat
+
+    /// Line width of the drop zone's dashed border. Default `1`.
+    public var shelfDropZoneStrokeWidth: CGFloat
+
+    /// Spacing in the populated shelf header (count / import / clear). Default `10`.
+    public var shelfHeaderSpacing: CGFloat
+
+    /// Spacing inside a shelf item chip (icon over filename). Default `4`.
+    public var shelfChipSpacing: CGFloat
+
+    /// Fixed width of a shelf item chip. Default `72`.
+    public var shelfChipWidth: CGFloat
+
+    /// Inner padding of a shelf item chip. Default `8`.
+    public var shelfChipPadding: CGFloat
+
+    /// Corner radius of a shelf item chip. Default `10`.
+    public var shelfChipCornerRadius: CGFloat
+
+    /// Square size of a shelf item's file icon. Default `34`.
+    public var shelfIconSize: CGFloat
+
+    /// Vertical padding around the horizontal shelf row. Default `2`.
+    public var shelfRowVerticalPadding: CGFloat
+
+    /// Spacing between the activity card's icon and its text column. Default `12`.
+    public var activityCardSpacing: CGFloat
+
+    /// Fixed width reserved for the activity card's leading icon. Default `30`.
+    public var activityIconWidth: CGFloat
+
+    /// Spacing between the activity card's title and subtitle. Default `2`.
+    public var activityTextSpacing: CGFloat
+
+    /// Vertical padding of the activity card. Default `16`.
+    public var activityCardVerticalPadding: CGFloat
+
+    /// Horizontal padding of the activity card. Default `8`.
+    public var activityCardHorizontalPadding: CGFloat
+
+    /// Opacity multiplier on the resolved primary label for the ambient volume glyph.
+    /// Default `0.85`.
+    public var volumeGlyphOpacity: CGFloat
+
+    // MARK: - Placeholder home
+
+    /// Spacing between the placeholder home's mark, title, and body. Default `10`.
+    public var placeholderStackSpacing: CGFloat
+
+    /// Point size of the placeholder home's brand mark. Default `28`.
+    public var placeholderMarkSize: CGFloat
+
+    /// Stroke width of the placeholder home's brand mark. Default `2`.
+    public var placeholderMarkStrokeWidth: CGFloat
+
+    /// Outer vertical padding of the placeholder home. Default `40`.
+    public var placeholderVerticalPadding: CGFloat
+
+    // MARK: - Settings panel
+
+    /// Spacing between top-level settings sections. Default `16`.
+    public var settingsSectionSpacing: CGFloat
+
+    /// Spacing between rows within a settings group. Default `12`.
+    public var settingsGroupSpacing: CGFloat
+
+    /// Horizontal spacing between a settings row's icon and its text. Default `10`.
+    public var settingsRowSpacing: CGFloat
+
+    /// Vertical spacing between blocks within a settings section. Default `10`.
+    public var settingsBlockSpacing: CGFloat
+
+    /// Spacing between a settings field label and its control. Default `5`.
+    public var settingsFieldSpacing: CGFloat
+
+    /// Spacing between a settings row's title and its detail. Default `2`.
+    public var settingsTextSpacing: CGFloat
+
+    /// Spacing between the About card's name and tagline. Default `3`.
+    public var settingsAboutTextSpacing: CGFloat
+
+    /// Inline spacing inside settings rows (disclosure header, accent swatches, About name).
+    /// Default `6`.
+    public var settingsInlineSpacing: CGFloat
+
+    /// Bottom padding under the scrolling settings content. Default `14`.
+    public var settingsContentBottomPadding: CGFloat
+
+    /// Vertical padding of a tappable settings row. Default `4`.
+    public var settingsRowVerticalPadding: CGFloat
+
+    /// Fixed width of a settings row's leading icon gutter. Default `18`.
+    public var settingsIconWidth: CGFloat
+
+    /// Width of the disclosure chevron gutter (aligns with the top bar's icon column).
+    /// Default `24`.
+    public var settingsDisclosureGutter: CGFloat
+
+    /// Letter spacing applied to the uppercased settings section label. Default `0.42`.
+    public var settingsSectionLabelTracking: CGFloat
+
+    /// Width of the disclosure section's connector hairline. Default `1`.
+    public var settingsConnectorWidth: CGFloat
+
+    /// Opacity multiplier on the resolved subtle stroke for the connector hairline.
+    /// Default `0.5`.
+    public var settingsConnectorOpacity: CGFloat
+
+    /// Square size of an accent color swatch. Default `18`.
+    public var settingsAccentSwatchSize: CGFloat
+
+    /// Stroke width of the selected accent swatch's ring. Default `1.5`.
+    public var settingsAccentSwatchStrokeWidth: CGFloat
+
+    /// Opacity multiplier on the resolved primary label for the selected swatch ring.
+    /// Default `0.85`.
+    public var settingsAccentSwatchSelectedOpacity: CGFloat
+
+    /// Minimum width of a shortcut key cap. Default `24`.
+    public var shortcutKeyCapMinWidth: CGFloat
+
+    /// Minimum height of a shortcut key cap. Default `22`.
+    public var shortcutKeyCapMinHeight: CGFloat
+
+    /// Corner radius of a shortcut key cap. Default `6`.
+    public var shortcutKeyCapCornerRadius: CGFloat
+
+    /// Opacity multiplier on the resolved primary label for a shortcut key cap. Default `0.92`.
+    public var shortcutKeyCapLabelOpacity: CGFloat
+
+    /// Opacity multiplier on the resolved subtle fill for a shortcut key cap. Default `0.55`.
+    public var shortcutKeyCapFillOpacity: CGFloat
+
+    /// Opacity multiplier on the resolved subtle stroke for a shortcut key cap. Default `0.35`.
+    public var shortcutKeyCapStrokeOpacity: CGFloat
+
+    /// Stroke width of a shortcut key cap's outline. Default `1`.
+    public var shortcutKeyCapStrokeWidth: CGFloat
+
+    /// Horizontal spacing between the shortcut key caps in the show/hide row. Default `4`.
+    public var shortcutKeyCapSpacing: CGFloat
+
+    /// Horizontal padding of the hotkey "recording" capsule. Default `10`.
+    public var settingsRecordingHorizontalPadding: CGFloat
+
+    /// Minimum height of the hotkey "recording" capsule. Default `22`.
+    public var settingsRecordingMinHeight: CGFloat
+
+    /// Opacity multiplier on the resolved subtle fill for the recording capsule. Default `0.7`.
+    public var settingsRecordingFillOpacity: CGFloat
+
+    /// Opacity multiplier on the resolved accent for the recording capsule outline.
+    /// Default `0.6`.
+    public var settingsRecordingStrokeOpacity: CGFloat
+
+    /// Stroke width of the recording capsule's outline. Default `1`.
+    public var settingsRecordingStrokeWidth: CGFloat
+
+    /// Opacity multiplier on the resolved primary label for emphasized settings titles
+    /// (shortcut row title, About product name). Default `0.95`.
+    public var settingsTitleEmphasisOpacity: CGFloat
+
+    /// Opacity multiplier on the resolved primary label for the recording capsule label.
+    /// Default `0.9`.
+    public var settingsRecordingLabelOpacity: CGFloat
+
+    /// Vertical spacing between stacked hotkey-registration failure rows. Default `4`.
+    public var settingsFailureRowSpacing: CGFloat
+
     public init(
         edgePadding: CGFloat = NookLayout.edgePadding,
         expandedColumnSpacing: CGFloat = 8,
@@ -171,7 +353,63 @@ public struct NookChromeMetrics: Sendable, Equatable {
         bannerDismissButtonSize: CGFloat = 18,
         bannerMessageLabelOpacity: CGFloat = 0.92,
         bannerStrokeOpacity: CGFloat = 0.65,
-        bannerStrokeWidth: CGFloat = 0.5
+        bannerStrokeWidth: CGFloat = 0.5,
+        shelfContentSpacing: CGFloat = 8,
+        shelfRootVerticalPadding: CGFloat = 6,
+        shelfDropZoneVerticalPadding: CGFloat = 28,
+        shelfDropZoneCornerRadius: CGFloat = 12,
+        shelfDropZoneStrokeWidth: CGFloat = 1,
+        shelfHeaderSpacing: CGFloat = 10,
+        shelfChipSpacing: CGFloat = 4,
+        shelfChipWidth: CGFloat = 72,
+        shelfChipPadding: CGFloat = 8,
+        shelfChipCornerRadius: CGFloat = 10,
+        shelfIconSize: CGFloat = 34,
+        shelfRowVerticalPadding: CGFloat = 2,
+        activityCardSpacing: CGFloat = 12,
+        activityIconWidth: CGFloat = 30,
+        activityTextSpacing: CGFloat = 2,
+        activityCardVerticalPadding: CGFloat = 16,
+        activityCardHorizontalPadding: CGFloat = 8,
+        volumeGlyphOpacity: CGFloat = 0.85,
+        placeholderStackSpacing: CGFloat = 10,
+        placeholderMarkSize: CGFloat = 28,
+        placeholderMarkStrokeWidth: CGFloat = 2,
+        placeholderVerticalPadding: CGFloat = 40,
+        settingsSectionSpacing: CGFloat = 16,
+        settingsGroupSpacing: CGFloat = 12,
+        settingsRowSpacing: CGFloat = 10,
+        settingsBlockSpacing: CGFloat = 10,
+        settingsFieldSpacing: CGFloat = 5,
+        settingsTextSpacing: CGFloat = 2,
+        settingsAboutTextSpacing: CGFloat = 3,
+        settingsInlineSpacing: CGFloat = 6,
+        settingsContentBottomPadding: CGFloat = 14,
+        settingsRowVerticalPadding: CGFloat = 4,
+        settingsIconWidth: CGFloat = 18,
+        settingsDisclosureGutter: CGFloat = 24,
+        settingsSectionLabelTracking: CGFloat = 0.42,
+        settingsConnectorWidth: CGFloat = 1,
+        settingsConnectorOpacity: CGFloat = 0.5,
+        settingsAccentSwatchSize: CGFloat = 18,
+        settingsAccentSwatchStrokeWidth: CGFloat = 1.5,
+        settingsAccentSwatchSelectedOpacity: CGFloat = 0.85,
+        shortcutKeyCapMinWidth: CGFloat = 24,
+        shortcutKeyCapMinHeight: CGFloat = 22,
+        shortcutKeyCapCornerRadius: CGFloat = 6,
+        shortcutKeyCapLabelOpacity: CGFloat = 0.92,
+        shortcutKeyCapFillOpacity: CGFloat = 0.55,
+        shortcutKeyCapStrokeOpacity: CGFloat = 0.35,
+        shortcutKeyCapStrokeWidth: CGFloat = 1,
+        shortcutKeyCapSpacing: CGFloat = 4,
+        settingsRecordingHorizontalPadding: CGFloat = 10,
+        settingsRecordingMinHeight: CGFloat = 22,
+        settingsRecordingFillOpacity: CGFloat = 0.7,
+        settingsRecordingStrokeOpacity: CGFloat = 0.6,
+        settingsRecordingStrokeWidth: CGFloat = 1,
+        settingsTitleEmphasisOpacity: CGFloat = 0.95,
+        settingsRecordingLabelOpacity: CGFloat = 0.9,
+        settingsFailureRowSpacing: CGFloat = 4
     ) {
         self.edgePadding = edgePadding
         self.expandedColumnSpacing = expandedColumnSpacing
@@ -201,6 +439,62 @@ public struct NookChromeMetrics: Sendable, Equatable {
         self.bannerMessageLabelOpacity = bannerMessageLabelOpacity
         self.bannerStrokeOpacity = bannerStrokeOpacity
         self.bannerStrokeWidth = bannerStrokeWidth
+        self.shelfContentSpacing = shelfContentSpacing
+        self.shelfRootVerticalPadding = shelfRootVerticalPadding
+        self.shelfDropZoneVerticalPadding = shelfDropZoneVerticalPadding
+        self.shelfDropZoneCornerRadius = shelfDropZoneCornerRadius
+        self.shelfDropZoneStrokeWidth = shelfDropZoneStrokeWidth
+        self.shelfHeaderSpacing = shelfHeaderSpacing
+        self.shelfChipSpacing = shelfChipSpacing
+        self.shelfChipWidth = shelfChipWidth
+        self.shelfChipPadding = shelfChipPadding
+        self.shelfChipCornerRadius = shelfChipCornerRadius
+        self.shelfIconSize = shelfIconSize
+        self.shelfRowVerticalPadding = shelfRowVerticalPadding
+        self.activityCardSpacing = activityCardSpacing
+        self.activityIconWidth = activityIconWidth
+        self.activityTextSpacing = activityTextSpacing
+        self.activityCardVerticalPadding = activityCardVerticalPadding
+        self.activityCardHorizontalPadding = activityCardHorizontalPadding
+        self.volumeGlyphOpacity = volumeGlyphOpacity
+        self.placeholderStackSpacing = placeholderStackSpacing
+        self.placeholderMarkSize = placeholderMarkSize
+        self.placeholderMarkStrokeWidth = placeholderMarkStrokeWidth
+        self.placeholderVerticalPadding = placeholderVerticalPadding
+        self.settingsSectionSpacing = settingsSectionSpacing
+        self.settingsGroupSpacing = settingsGroupSpacing
+        self.settingsRowSpacing = settingsRowSpacing
+        self.settingsBlockSpacing = settingsBlockSpacing
+        self.settingsFieldSpacing = settingsFieldSpacing
+        self.settingsTextSpacing = settingsTextSpacing
+        self.settingsAboutTextSpacing = settingsAboutTextSpacing
+        self.settingsInlineSpacing = settingsInlineSpacing
+        self.settingsContentBottomPadding = settingsContentBottomPadding
+        self.settingsRowVerticalPadding = settingsRowVerticalPadding
+        self.settingsIconWidth = settingsIconWidth
+        self.settingsDisclosureGutter = settingsDisclosureGutter
+        self.settingsSectionLabelTracking = settingsSectionLabelTracking
+        self.settingsConnectorWidth = settingsConnectorWidth
+        self.settingsConnectorOpacity = settingsConnectorOpacity
+        self.settingsAccentSwatchSize = settingsAccentSwatchSize
+        self.settingsAccentSwatchStrokeWidth = settingsAccentSwatchStrokeWidth
+        self.settingsAccentSwatchSelectedOpacity = settingsAccentSwatchSelectedOpacity
+        self.shortcutKeyCapMinWidth = shortcutKeyCapMinWidth
+        self.shortcutKeyCapMinHeight = shortcutKeyCapMinHeight
+        self.shortcutKeyCapCornerRadius = shortcutKeyCapCornerRadius
+        self.shortcutKeyCapLabelOpacity = shortcutKeyCapLabelOpacity
+        self.shortcutKeyCapFillOpacity = shortcutKeyCapFillOpacity
+        self.shortcutKeyCapStrokeOpacity = shortcutKeyCapStrokeOpacity
+        self.shortcutKeyCapStrokeWidth = shortcutKeyCapStrokeWidth
+        self.shortcutKeyCapSpacing = shortcutKeyCapSpacing
+        self.settingsRecordingHorizontalPadding = settingsRecordingHorizontalPadding
+        self.settingsRecordingMinHeight = settingsRecordingMinHeight
+        self.settingsRecordingFillOpacity = settingsRecordingFillOpacity
+        self.settingsRecordingStrokeOpacity = settingsRecordingStrokeOpacity
+        self.settingsRecordingStrokeWidth = settingsRecordingStrokeWidth
+        self.settingsTitleEmphasisOpacity = settingsTitleEmphasisOpacity
+        self.settingsRecordingLabelOpacity = settingsRecordingLabelOpacity
+        self.settingsFailureRowSpacing = settingsFailureRowSpacing
     }
 
     /// The framework-default metrics - reproduces today's layout.

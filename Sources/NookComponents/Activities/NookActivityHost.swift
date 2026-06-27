@@ -45,33 +45,35 @@ public struct NookActivityHost<Content: View>: View {
 public struct NookActivityCard: View {
     private let activity: NookActivity
     @Environment(\.nookResolvedTheme) private var theme
+    @Environment(\.nookChromeTypography) private var typography
+    @Environment(\.nookChromeMetrics) private var metrics
 
     public init(activity: NookActivity) {
         self.activity = activity
     }
 
     public var body: some View {
-        HStack(spacing: 12) {
+        HStack(spacing: metrics.activityCardSpacing) {
             if let systemImage = activity.systemImage {
                 Image(systemName: systemImage)
-                    .font(.system(size: 24, weight: .medium))
+                    .font(typography.activityIcon)
                     .foregroundStyle(activity.tint)
-                    .frame(width: 30)
+                    .frame(width: metrics.activityIconWidth)
             }
-            VStack(alignment: .leading, spacing: 2) {
+            VStack(alignment: .leading, spacing: metrics.activityTextSpacing) {
                 Text(activity.title)
-                    .font(.system(size: 13, weight: .semibold))
+                    .font(typography.activityTitle)
                     .foregroundStyle(theme.primaryLabel)
                 if let subtitle = activity.subtitle {
                     Text(subtitle)
-                        .font(.system(size: 11))
+                        .font(typography.activitySubtitle)
                         .foregroundStyle(theme.secondaryLabel)
                 }
             }
             Spacer(minLength: 0)
         }
         .frame(maxWidth: .infinity, alignment: .leading)
-        .padding(.vertical, 16)
-        .padding(.horizontal, 8)
+        .padding(.vertical, metrics.activityCardVerticalPadding)
+        .padding(.horizontal, metrics.activityCardHorizontalPadding)
     }
 }

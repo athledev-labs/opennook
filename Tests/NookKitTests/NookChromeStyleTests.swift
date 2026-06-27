@@ -164,6 +164,106 @@ final class NookChromeStyleTests: XCTestCase {
         XCTAssertEqual(configuration.typography.topBarLabel, .system(size: 13, weight: .bold))
     }
 
+    // MARK: - Full-sweep defaults (components, placeholder, settings)
+
+    /// The component, placeholder, and Settings font roles default to today's fonts.
+    func testFullSweepTypographyDefaultsReproduceFramework() {
+        let typography = NookChromeTypography.default
+        // Components
+        XCTAssertEqual(typography.shelfDropZoneIcon, .system(size: 24, weight: .light))
+        XCTAssertEqual(typography.shelfCaption, .system(size: 11))
+        XCTAssertEqual(typography.shelfHeaderLabel, .system(size: 11, weight: .medium))
+        XCTAssertEqual(typography.shelfChipLabel, .system(size: 10, weight: .medium))
+        XCTAssertEqual(typography.shelfFallbackGlyph, .system(size: 30, weight: .light))
+        XCTAssertEqual(typography.shelfRemoveGlyph, .system(size: 13))
+        XCTAssertEqual(typography.activityIcon, .system(size: 24, weight: .medium))
+        XCTAssertEqual(typography.activityTitle, .system(size: 13, weight: .semibold))
+        XCTAssertEqual(typography.activitySubtitle, .system(size: 11))
+        XCTAssertEqual(typography.volumeGlyph, .system(size: 11, weight: .semibold))
+        // Placeholder
+        XCTAssertEqual(typography.placeholderTitle, .system(size: 14, weight: .medium))
+        XCTAssertEqual(typography.placeholderBody, .system(size: 11, weight: .regular))
+        // Settings
+        XCTAssertEqual(typography.settingsSectionLabel, .system(size: 9, weight: .semibold))
+        XCTAssertEqual(typography.settingsHint, .system(size: 9, weight: .regular))
+        XCTAssertEqual(typography.settingsCaption, .system(size: 10, weight: .regular))
+        XCTAssertEqual(typography.settingsVersionLabel, .system(size: 10, weight: .regular, design: .monospaced))
+        XCTAssertEqual(typography.settingsFieldLabel, .system(size: 10, weight: .medium))
+        XCTAssertEqual(typography.settingsCommandChevron, .system(size: 10, weight: .bold))
+        XCTAssertEqual(typography.settingsRowDetail, .system(size: 11, weight: .regular))
+        XCTAssertEqual(typography.settingsRowTitle, .system(size: 11, weight: .medium))
+        XCTAssertEqual(typography.settingsEmphasis, .system(size: 11, weight: .semibold))
+        XCTAssertEqual(typography.settingsCommandTitle, .system(size: 12, weight: .regular))
+        XCTAssertEqual(typography.settingsCommandIcon, .system(size: 12, weight: .semibold))
+        XCTAssertEqual(typography.settingsDisclosureChevron, .system(size: 8, weight: .bold))
+    }
+
+    /// The component, placeholder, and Settings metric roles default to today's values.
+    func testFullSweepMetricsDefaultsReproduceFramework() {
+        let metrics = NookChromeMetrics.default
+        // Components - shelf
+        XCTAssertEqual(metrics.shelfContentSpacing, 8)
+        XCTAssertEqual(metrics.shelfRootVerticalPadding, 6)
+        XCTAssertEqual(metrics.shelfDropZoneVerticalPadding, 28)
+        XCTAssertEqual(metrics.shelfDropZoneCornerRadius, 12)
+        XCTAssertEqual(metrics.shelfDropZoneStrokeWidth, 1)
+        XCTAssertEqual(metrics.shelfHeaderSpacing, 10)
+        XCTAssertEqual(metrics.shelfChipSpacing, 4)
+        XCTAssertEqual(metrics.shelfChipWidth, 72)
+        XCTAssertEqual(metrics.shelfChipPadding, 8)
+        XCTAssertEqual(metrics.shelfChipCornerRadius, 10)
+        XCTAssertEqual(metrics.shelfIconSize, 34)
+        XCTAssertEqual(metrics.shelfRowVerticalPadding, 2)
+        // Components - activity + volume
+        XCTAssertEqual(metrics.activityCardSpacing, 12)
+        XCTAssertEqual(metrics.activityIconWidth, 30)
+        XCTAssertEqual(metrics.activityTextSpacing, 2)
+        XCTAssertEqual(metrics.activityCardVerticalPadding, 16)
+        XCTAssertEqual(metrics.activityCardHorizontalPadding, 8)
+        XCTAssertEqual(metrics.volumeGlyphOpacity, 0.85)
+        // Placeholder
+        XCTAssertEqual(metrics.placeholderStackSpacing, 10)
+        XCTAssertEqual(metrics.placeholderMarkSize, 28)
+        XCTAssertEqual(metrics.placeholderMarkStrokeWidth, 2)
+        XCTAssertEqual(metrics.placeholderVerticalPadding, 40)
+        // Settings - spacing
+        XCTAssertEqual(metrics.settingsSectionSpacing, 16)
+        XCTAssertEqual(metrics.settingsGroupSpacing, 12)
+        XCTAssertEqual(metrics.settingsRowSpacing, 10)
+        XCTAssertEqual(metrics.settingsBlockSpacing, 10)
+        XCTAssertEqual(metrics.settingsFieldSpacing, 5)
+        XCTAssertEqual(metrics.settingsTextSpacing, 2)
+        XCTAssertEqual(metrics.settingsAboutTextSpacing, 3)
+        XCTAssertEqual(metrics.settingsInlineSpacing, 6)
+        XCTAssertEqual(metrics.settingsContentBottomPadding, 14)
+        XCTAssertEqual(metrics.settingsRowVerticalPadding, 4)
+        // Settings - dims + opacities
+        XCTAssertEqual(metrics.settingsIconWidth, 18)
+        XCTAssertEqual(metrics.settingsDisclosureGutter, 24)
+        XCTAssertEqual(metrics.settingsSectionLabelTracking, 0.42)
+        XCTAssertEqual(metrics.settingsConnectorWidth, 1)
+        XCTAssertEqual(metrics.settingsConnectorOpacity, 0.5)
+        XCTAssertEqual(metrics.settingsAccentSwatchSize, 18)
+        XCTAssertEqual(metrics.settingsAccentSwatchStrokeWidth, 1.5)
+        XCTAssertEqual(metrics.settingsAccentSwatchSelectedOpacity, 0.85)
+        XCTAssertEqual(metrics.shortcutKeyCapMinWidth, 24)
+        XCTAssertEqual(metrics.shortcutKeyCapMinHeight, 22)
+        XCTAssertEqual(metrics.shortcutKeyCapCornerRadius, 6)
+        XCTAssertEqual(metrics.shortcutKeyCapLabelOpacity, 0.92)
+        XCTAssertEqual(metrics.shortcutKeyCapFillOpacity, 0.55)
+        XCTAssertEqual(metrics.shortcutKeyCapStrokeOpacity, 0.35)
+        XCTAssertEqual(metrics.shortcutKeyCapStrokeWidth, 1)
+        XCTAssertEqual(metrics.shortcutKeyCapSpacing, 4)
+        XCTAssertEqual(metrics.settingsRecordingHorizontalPadding, 10)
+        XCTAssertEqual(metrics.settingsRecordingMinHeight, 22)
+        XCTAssertEqual(metrics.settingsRecordingFillOpacity, 0.7)
+        XCTAssertEqual(metrics.settingsRecordingStrokeOpacity, 0.6)
+        XCTAssertEqual(metrics.settingsRecordingStrokeWidth, 1)
+        XCTAssertEqual(metrics.settingsTitleEmphasisOpacity, 0.95)
+        XCTAssertEqual(metrics.settingsRecordingLabelOpacity, 0.9)
+        XCTAssertEqual(metrics.settingsFailureRowSpacing, 4)
+    }
+
     // MARK: - Motion
 
     func testMotionDefaultsAndConfigurable() {
